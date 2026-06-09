@@ -53,5 +53,46 @@
 
 ## 🧠 System Architecture Flow
 
-```txt id="arch_flow"
+```txt id="arch_flow```
 Login → Dashboard → Product Management → Billing Engine → Invoice Generation → Sales Analytics
+
+```📸 UI Screenshots```
+<p align="center"> <img src="img1" width="45%" /> <img src="img2" width="45%" /> <br/> <img src="img3" width="45%" /> <img src="img4" width="45%" /> </p>
+
+📊 GitHub Analytics
+<p align="center"> <img src="https://github-readme-stats.vercel.app/api?username=NaveyaB&show_icons=true&theme=tokyonight" width="48%" /> <img src="https://github-readme-streak-stats.herokuapp.com/?user=NaveyaB&theme=tokyonight" width="48%" /> </p>
+
+📂 Project Structure
+
+Nova_POS_project/
+│
+├── app/
+├── components/
+├── lib/
+├── pages/
+├── public/
+└── supabase/
+
+⚙️ Installation
+git clone https://github.com/NaveyaB/Nova_POS_project.git
+cd Nova_POS_project
+npm install
+npm run dev
+
+🚀 Future Enhancements
+📱 Mobile App Version (React Native)
+📦 Barcode Scanner Integration
+🔔 Real-Time Push Notifications
+📈 AI-Based Sales Prediction
+💳 Payment Gateway Integration
+👨‍💻 Developer
+
+Naveya B
+Frontend Developer | Next.js Enthusiast | Supabase Explorer
+
+<p align="center"> <b>Built with ⚡ precision, speed & modern UI thinking</b> </p> ```
+
+
+
+
+
