@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white&labelColor=0d0d0d" />
   <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black&labelColor=0d0d0d" />
   <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white&labelColor=0d0d0d" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white&labelColor=0d0d0d" />
   <img src="https://img.shields.io/badge/Status-Live-00FF88?style=for-the-badge&logo=vercel&logoColor=black&labelColor=0d0d0d" />
 </p>
 
@@ -17,97 +18,77 @@
 
 # 🧾 Nova POS System
 
-> A **premium-grade Point of Sale system** designed with modern UI principles, real-time database sync, and scalable architecture.
+> **A premium-grade Point of Sale system** designed with modern UI principles, real-time database sync, and scalable architecture. Built for businesses that demand speed and elegance.
 
 ---
 
 ## 🚀 Live Demo
 
 <p align="center">
-  <a href="https://your-live-demo-link.com">
+  <a href="https://your-live-demo-link.vercel.app">
     <img src="https://img.shields.io/badge/🚀%20LIVE%20DEMO-CLICK%20HERE-00E5FF?style=for-the-badge&logo=vercel&logoColor=black" />
   </a>
 </p>
 
 ---
 
-## 🎬 Dashboard Preview (GIF)
+## 🎬 Dashboard Preview
 
 <p align="center">
-  <img src="img1" width="90%" />
+  <!-- replace img1 with your image url -->
+  <img src="https://via.placeholder.com/900x450/0d0d0d/00E5FF?text=Nova+POS+Dashboard+Preview" width="95%" style="border-radius: 15px;" />
 </p>
 
 ---
 
 ## ⚡ Core Features
 
-- 🛒 Smart Product Management System  
-- 📦 Real-Time Inventory Tracking (Supabase Sync)  
-- 💰 Instant Billing & Invoice Generation  
-- 🔍 Advanced Search & Filtering  
-- 📊 Analytics Dashboard  
-- 👤 Secure Authentication System  
-- ☁️ Cloud-Based Database Architecture  
-
----
-Login → Dashboard → Product Management → Billing Engine → Invoice → Sales Analytics
-
+- 🛒 **Smart Product Management** – Effortless CRUD operations for inventory.
+- 📦 **Real-Time Sync** – Powered by Supabase for instant data updates.
+- 💰 **Fast Billing Engine** – High-speed checkout and automated calculations.
+- 🔍 **Advanced Search** – Instantly filter through thousands of products.
+- 📊 **Sales Analytics** – Interactive dashboard to track business growth.
+- 👤 **Secure Auth** – Enterprise-grade security via Supabase Auth.
+- ☁️ **Scalable Architecture** – Clean code built for future expansions.
 
 ---
 
-## 📸 UI Screenshots
+## 🧠 System Workflow
+
+```mermaid
+graph LR
+  A[Login] --> B[Dashboard]
+  B --> C[Inventory Management]
+  C --> D[Billing Engine]
+  D --> E[Invoice Generation]
+  E --> F[Sales Analytics]
+  style A fill:#00E5FF,stroke:#333
+  style F fill:#00FF88,stroke:#333
 
 <p align="center">
-  <img src="img1" width="45%" />
-  <img src="img2" width="45%" />
-  <br/>
-  <img src="img3" width="45%" />
-  <img src="img4" width="45%" />
+<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Billing+UI" width="48%" />
+<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Inventory+Control" width="48%" />
 </p>
 
----
-
-## 📊 GitHub Analytics
-
-<p align="center">
-  <img src="https://github-readme-stats.vercel.app/api?username=NaveyaB&show_icons=true&theme=tokyonight" width="48%" />
-  <img src="https://github-readme-streak-stats.herokuapp.com/?user=NaveyaB&theme=tokyonight" width="48%" />
-</p>
-
----
-
-## 📂 Project Structure
 Nova_POS_project/
-│
-├── app/
-├── components/
-├── lib/
-├── pages/
-├── public/
-└── supabase/
+├── app/            # Next.js App Router (Pages & Layouts)
+├── components/     # Reusable UI Components
+├── lib/            # Utility functions & Supabase Client
+├── public/         # Static Assets (Images, Icons)
+├── supabase/       # Database Schemas & Migrations
+└── types/          # TypeScript Definitions
 
-
----
-
-## ⚙️ Installation
-
-```bash
-git clone https://github.com/NaveyaB/Nova_POS_project.git
-cd Nova_POS_project
-npm install
-npm run dev
-
-🚀 Future Enhancements
-📱 Mobile App Version (React Native)
-📦 Barcode Scanner Integration
-🔔 Real-Time Notifications
-📈 AI-Based Sales Prediction
-💳 Payment Gateway Integration
+<p align="center">
+<img src="https://github-readme-stats.vercel.app/api?username=NaveyaB&show_icons=true&theme=tokyonight" width="48%" />
+<img src="https://github-readme-streak-stats.herokuapp.com/?user=NaveyaB&theme=tokyonight" width="48%" />
+</p>
 👨‍💻 Developer
-
 Naveya B
 Frontend Developer | Next.js Enthusiast | Supabase Explorer
-
-<p align="center"> <b>Built with ⚡ precision, speed & modern UI thinking</b> </p> ```
-
-## 🧠 System Architecture Flow
+<p align="left">
+<a href="https://github.com/NaveyaB">
+<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
+</a>
+</p>
+<p align="center"> <b>Built with ⚡ precision, speed & modern UI thinking</b> </p>
+```
