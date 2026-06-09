@@ -1,54 +1,57 @@
-<!-- ================= ANIMATED HEADER ================= -->
+<!-- ================= GLASSMORPHIC ANIMATED HEADER ================= -->
 <p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=28&duration=2800&pause=800&color=00F7FF&center=true&vCenter=true&width=800&lines=Nova+POS+System;Smart+Point+of+Sale+Application;Inventory+%7C+Billing+%7C+Sales+Management;Built+for+Speed+and+Efficiency" />
+  <img src="https://readme-typing-svg.herokuapp.com?font=SF+Pro+Display&weight=600&size=32&duration=2500&pause=700&color=00E5FF&center=true&vCenter=true&width=900&lines=Nova+POS+System;Apple-Level+Modern+Point+of+Sale;Next.js+%7C+React+%7C+Supabase;Fast%2C+Clean+%26+Scalable+Architecture" />
 </p>
 
 ---
 
-<!-- ================= BADGES ================= -->
+<!-- ================= 3D GLOW BADGES ================= -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Frontend-React%2FHTML%2FCSS-blue" />
-  <img src="https://img.shields.io/badge/Backend-Node.js-green" />
-  <img src="https://img.shields.io/badge/Database-SQL%2FNoSQL-orange" />
-  <img src="https://img.shields.io/badge/Status-Active-success" />
+  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white&labelColor=0d0d0d" />
+  <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black&labelColor=0d0d0d" />
+  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white&labelColor=0d0d0d" />
+  <img src="https://img.shields.io/badge/Status-Live-00FF88?style=for-the-badge&logo=vercel&logoColor=black&labelColor=0d0d0d" />
 </p>
 
 ---
 
 # 🧾 Nova POS System
 
-A modern **Point of Sale (POS) application** designed to streamline retail operations like product management, billing, inventory tracking, and sales analytics.
+> A **premium-grade Point of Sale system** designed with modern UI principles, real-time database sync, and scalable architecture.
 
 ---
 
-## 🚀 Overview
+## 🚀 Live Demo
 
-Nova POS is built to simplify business operations by providing a **fast, reliable, and user-friendly system** for managing daily sales and stock.
-
-It helps shop owners and admins:
-- Manage products efficiently
-- Generate invoices instantly
-- Track sales history
-- Monitor inventory in real time
+<p align="center">
+  <a href="https://your-live-demo-link.com">
+    <img src="https://img.shields.io/badge/🚀%20LIVE%20DEMO-CLICK%20HERE-00E5FF?style=for-the-badge&logo=vercel&logoColor=black" />
+  </a>
+</p>
 
 ---
 
-## ⚙️ Key Features
+## 🎬 Dashboard Preview (GIF)
 
-- 🛒 Product Management (Add / Update / Delete)
-- 📦 Inventory Control System
-- 💰 Smart Billing & Invoice Generator
-- 🔍 Search & Filter Products
-- 📊 Sales Dashboard & Reports
-- 👤 Admin Authentication System
-- 📱 Fully Responsive UI
+<p align="center">
+  <img src="img1" width="90%" />
+</p>
 
 ---
 
-## 🛠️ Tech Stack
+## ⚡ Core Features
 
-```txt
-Frontend  → HTML, CSS, JavaScript / React
-Backend   → Node.js / Express (if used)
-Database  → MySQL / MongoDB / Supabase
-Styling   → Tailwind CSS / Bootstrap
+- 🛒 Smart Product Management System  
+- 📦 Real-Time Inventory Tracking (Supabase Sync)  
+- 💰 Instant Billing & Invoice Generation  
+- 🔍 Advanced Search & Filtering  
+- 📊 Analytics Dashboard  
+- 👤 Secure Authentication System  
+- ☁️ Cloud-Based Database Architecture  
+
+---
+
+## 🧠 System Architecture Flow
+
+```txt id="arch_flow"
+Login → Dashboard → Product Management → Billing Engine → Invoice Generation → Sales Analytics
