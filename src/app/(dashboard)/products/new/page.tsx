@@ -1,16 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select } from "@/components/ui/select"
-import { mockCategories } from "@/lib/mock-data"
 import { toast } from "sonner"
 
 export default function NewProductPage() {
   const router = useRouter()
+  const [categories, setCategories] = useState<any[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -26,14 +30,56 @@ export default function NewProductPage() {
     unit: "",
   })
 
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => setCategories(data))
+      .catch(() => toast.error("Failed to load categories"))
+      .finally(() => setCategoriesLoading(false))
+  }, [])
+
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success("Product created successfully")
-    router.push("/products")
+    setSubmitting(true)
+    try {
+      let image_url = ""
+
+      if (imageFile) {
+        const uploadData = new FormData()
+        uploadData.append("file", imageFile)
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadData })
+        if (!uploadRes.ok) throw new Error("Failed to upload image")
+        const { url } = await uploadRes.json()
+        image_url = url
+      }
+
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          purchase_price: Number(form.purchase_price),
+          selling_price: Number(form.selling_price),
+          stock_quantity: Number(form.stock_quantity),
+          min_stock_level: Number(form.min_stock_level),
+          gst_percentage: Number(form.gst_percentage),
+          image_url,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to create product")
+
+      toast.success("Product created successfully")
+      router.push("/products")
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -83,13 +129,17 @@ export default function NewProductPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Category</label>
-                <Select
-                  required
-                  placeholder="Select category"
-                  value={form.category_id}
-                  onChange={(e) => updateField("category_id", e.target.value)}
-                  options={mockCategories.map((c) => ({ value: c.id, label: c.name }))}
-                />
+                {categoriesLoading ? (
+                  <div className="flex h-10 items-center text-sm text-gray-400">Loading categories...</div>
+                ) : (
+                  <Select
+                    required
+                    placeholder="Select category"
+                    value={form.category_id}
+                    onChange={(e) => updateField("category_id", e.target.value)}
+                    options={categories.map((c: any) => ({ value: c.id, label: c.name }))}
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -183,11 +233,23 @@ export default function NewProductPage() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Product Image</label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button type="submit">Create Product</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Product
+              </Button>
             </div>
           </form>
         </CardContent>

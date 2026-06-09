@@ -125,6 +125,14 @@ export interface StoreSettings {
   receipt_footer?: string
 }
 
+export interface LowStockItem {
+  id: string
+  name: string
+  sku: string
+  stock_quantity: number
+  min_stock_level: number
+}
+
 export interface DashboardStats {
   today_sales: number
   monthly_sales: number
@@ -132,4 +140,5 @@ export interface DashboardStats {
   low_stock_products: number
   total_customers: number
   total_orders: number
+  low_stock_items: LowStockItem[]
 }

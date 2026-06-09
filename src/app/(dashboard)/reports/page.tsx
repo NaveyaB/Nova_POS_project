@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { formatCurrency } from "@/lib/utils"
-import { mockSales, mockProducts, mockCustomers } from "@/lib/mock-data"
+import { Loader2 } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -23,6 +23,7 @@ import {
   Legend,
 } from "recharts"
 import { DollarSign, TrendingUp, ShoppingCart, Wallet, Package, AlertTriangle, CheckCircle, Users, Repeat, Award } from "lucide-react"
+import type { Sale, Product, Customer } from "@/types"
 
 type Tab = "sales" | "inventory" | "customer"
 type Period = "today" | "weekly" | "monthly" | "yearly" | "custom"
@@ -34,11 +35,44 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>("monthly")
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
+  const [sales, setSales] = useState<Sale[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const [salesRes, productsRes, customersRes] = await Promise.all([
+          fetch("/api/sales"),
+          fetch("/api/products"),
+          fetch("/api/customers"),
+        ])
+        if (!salesRes.ok || !productsRes.ok || !customersRes.ok) {
+          throw new Error("Failed to fetch report data")
+        }
+        const [salesData, productsData, customersData] = await Promise.all([
+          salesRes.json(),
+          productsRes.json(),
+          customersRes.json(),
+        ])
+        setSales(salesData)
+        setProducts(productsData)
+        setCustomers(customersData)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const todayStr = "2026-06-08"
 
   const filteredSales = useMemo(() => {
-    return mockSales.filter((sale) => {
+    return sales.filter((sale) => {
       const saleDate = sale.created_at.split("T")[0]
       switch (period) {
         case "today":
@@ -65,7 +99,7 @@ export default function ReportsPage() {
           return true
       }
     })
-  }, [period, customStart, customEnd])
+  }, [sales, period, customStart, customEnd])
 
   const revenue = useMemo(() => filteredSales.reduce((sum, s) => sum + s.total, 0), [filteredSales])
   const orders = filteredSales.length
@@ -140,17 +174,17 @@ export default function ReportsPage() {
   ]
 
   const inventoryData = useMemo(() => {
-    const inStock = mockProducts.filter((p) => p.stock_quantity > p.min_stock_level).length
-    const lowStock = mockProducts.filter(
+    const inStock = products.filter((p) => p.stock_quantity > p.min_stock_level).length
+    const lowStock = products.filter(
       (p) => p.stock_quantity > 0 && p.stock_quantity <= p.min_stock_level
     ).length
-    const outOfStock = mockProducts.filter((p) => p.stock_quantity === 0).length
-    const stockValue = mockProducts.reduce(
+    const outOfStock = products.filter((p) => p.stock_quantity === 0).length
+    const stockValue = products.reduce(
       (sum, p) => sum + p.purchase_price * p.stock_quantity,
       0
     )
     return { inStock, lowStock, outOfStock, stockValue }
-  }, [])
+  }, [products])
 
   const inventoryChartData = [
     { name: "In Stock", value: inventoryData.inStock },
@@ -159,17 +193,17 @@ export default function ReportsPage() {
   ]
 
   const topCustomers = useMemo(
-    () => [...mockCustomers].sort((a, b) => b.loyalty_points - a.loyalty_points),
-    []
+    () => [...customers].sort((a, b) => b.loyalty_points - a.loyalty_points),
+    [customers]
   )
 
   const repeatCustomers = useMemo(() => {
     const counts: Record<string, number> = {}
-    mockSales.forEach((s) => {
+    sales.forEach((s) => {
       if (s.customer_id) counts[s.customer_id] = (counts[s.customer_id] || 0) + 1
     })
     return Object.values(counts).filter((c) => c > 1).length
-  }, [])
+  }, [sales])
 
   const periods: { value: Period; label: string }[] = [
     { value: "today", label: "Today" },
@@ -178,6 +212,14 @@ export default function ReportsPage() {
     { value: "yearly", label: "Yearly" },
     { value: "custom", label: "Custom Date" },
   ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -440,7 +482,7 @@ export default function ReportsPage() {
                     <Users className="h-4 w-4 text-white" />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-bold text-gray-900">{mockCustomers.length}</p>
+                <p className="mt-3 text-2xl font-bold text-gray-900">{customers.length}</p>
                 <p className="text-sm text-gray-500">Total Customers</p>
               </CardContent>
             </Card>
@@ -463,7 +505,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 <p className="mt-3 text-2xl font-bold text-gray-900">
-                  {mockCustomers.reduce((s, c) => s + c.loyalty_points, 0)}
+                  {customers.reduce((s, c) => s + c.loyalty_points, 0)}
                 </p>
                 <p className="text-sm text-gray-500">Total Loyalty Points</p>
               </CardContent>

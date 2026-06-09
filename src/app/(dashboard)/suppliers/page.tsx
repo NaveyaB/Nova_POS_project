@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -8,16 +9,36 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
-import { mockSuppliers } from "@/lib/mock-data"
+import { toast } from "sonner"
 import { Building2, FileCheck, Pencil, Trash2, Plus } from "lucide-react"
 import type { Supplier } from "@/types"
 
 export default function SuppliersPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [formData, setFormData] = useState({ name: "", phone: "", email: "", address: "", gst_number: "" })
+  const [saving, setSaving] = useState(false)
+
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/suppliers")
+      if (!res.ok) throw new Error("Failed to load suppliers")
+      const data = await res.json()
+      setSuppliers(Array.isArray(data) ? data : data.data ?? [])
+    } catch {
+      toast.error("Failed to load suppliers")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
 
   const filteredSuppliers = useMemo(() => {
     if (!search.trim()) return suppliers
@@ -58,43 +79,45 @@ export default function SuppliersPage() {
     setDialogOpen(true)
   }
 
-  const handleDelete = (supplier: Supplier) => {
-    if (window.confirm(`Are you sure you want to delete ${supplier.name}?`)) {
-      setSuppliers((prev) => prev.filter((s) => s.id !== supplier.id))
+  const handleDelete = async (supplier: Supplier) => {
+    if (!window.confirm(`Are you sure you want to delete ${supplier.name}?`)) return
+    try {
+      const res = await fetch(`/api/suppliers/${supplier.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      toast.success("Supplier deleted")
+      await fetchSuppliers()
+    } catch {
+      toast.error("Failed to delete supplier")
     }
   }
 
-  const handleSave = () => {
-    if (editingSupplier) {
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.id === editingSupplier.id
-            ? {
-                ...s,
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email || undefined,
-                address: formData.address || undefined,
-                gst_number: formData.gst_number || undefined,
-                updated_at: new Date().toISOString().split("T")[0],
-              }
-            : s
-        )
-      )
-    } else {
-      const newSupplier: Supplier = {
-        id: `s${Date.now()}`,
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        address: formData.address || undefined,
-        gst_number: formData.gst_number || undefined,
-        created_at: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      if (editingSupplier) {
+        const res = await fetch(`/api/suppliers/${editingSupplier.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to update")
+        toast.success("Supplier updated")
+      } else {
+        const res = await fetch("/api/suppliers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to create")
+        toast.success("Supplier created")
       }
-      setSuppliers((prev) => [...prev, newSupplier])
+      setDialogOpen(false)
+      await fetchSuppliers()
+    } catch {
+      toast.error(editingSupplier ? "Failed to update supplier" : "Failed to create supplier")
+    } finally {
+      setSaving(false)
     }
-    setDialogOpen(false)
   }
 
   return (
@@ -136,52 +159,58 @@ export default function SuppliersPage() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>GST Number</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSuppliers.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell className="font-medium">{supplier.name}</TableCell>
-                  <TableCell>{supplier.phone || "\u2014"}</TableCell>
-                  <TableCell>{supplier.email || "\u2014"}</TableCell>
-                  <TableCell>{supplier.address || "\u2014"}</TableCell>
-                  <TableCell>
-                    {supplier.gst_number ? (
-                      <Badge variant="outline">{supplier.gst_number}</Badge>
-                    ) : (
-                      "\u2014"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(supplier)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredSuppliers.length === 0 && (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-gray-500">
-                    No suppliers found
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>GST Number</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredSuppliers.map((supplier) => (
+                  <TableRow key={supplier.id}>
+                    <TableCell className="font-medium">{supplier.name}</TableCell>
+                    <TableCell>{supplier.phone || "\u2014"}</TableCell>
+                    <TableCell>{supplier.email || "\u2014"}</TableCell>
+                    <TableCell>{supplier.address || "\u2014"}</TableCell>
+                    <TableCell>
+                      {supplier.gst_number ? (
+                        <Badge variant="outline">{supplier.gst_number}</Badge>
+                      ) : (
+                        "\u2014"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(supplier)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredSuppliers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-gray-500">
+                      No suppliers found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -237,7 +266,9 @@ export default function SuppliersPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editingSupplier ? "Update" : "Save"}</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : editingSupplier ? "Update" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

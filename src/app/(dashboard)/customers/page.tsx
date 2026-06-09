@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -8,19 +9,52 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
-import { mockCustomers, mockSales } from "@/lib/mock-data"
+import { toast } from "sonner"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Users, Award, UserPlus, Pencil, ShoppingBag, Plus } from "lucide-react"
-import type { Customer } from "@/types"
+import type { Customer, Sale } from "@/types"
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null)
   const [formData, setFormData] = useState({ name: "", phone: "", email: "", address: "" })
+  const [saving, setSaving] = useState(false)
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/customers")
+      if (!res.ok) throw new Error("Failed to load customers")
+      const data = await res.json()
+      setCustomers(Array.isArray(data) ? data : data.data ?? [])
+    } catch {
+      toast.error("Failed to load customers")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchSales = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sales")
+      if (!res.ok) throw new Error("Failed to load sales")
+      const data = await res.json()
+      setSales(Array.isArray(data) ? data : data.data ?? [])
+    } catch {
+      // non-critical
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCustomers()
+    fetchSales()
+  }, [fetchCustomers, fetchSales])
 
   const filteredCustomers = useMemo(() => {
     if (!search.trim()) return customers
@@ -45,8 +79,8 @@ export default function CustomersPage() {
 
   const customerSales = useMemo(() => {
     if (!historyCustomer) return []
-    return mockSales.filter((s) => s.customer_id === historyCustomer.id)
-  }, [historyCustomer])
+    return sales.filter((s) => s.customer_id === historyCustomer.id)
+  }, [historyCustomer, sales])
 
   const openAddDialog = () => {
     setEditingCustomer(null)
@@ -70,29 +104,33 @@ export default function CustomersPage() {
     setHistoryOpen(true)
   }
 
-  const handleSave = () => {
-    if (editingCustomer) {
-      setCustomers((prev) =>
-        prev.map((c) =>
-          c.id === editingCustomer.id
-            ? { ...c, ...formData, updated_at: new Date().toISOString().split("T")[0] }
-            : c
-        )
-      )
-    } else {
-      const newCustomer: Customer = {
-        id: `c${Date.now()}`,
-        name: formData.name,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
-        address: formData.address || undefined,
-        loyalty_points: 0,
-        created_at: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      if (editingCustomer) {
+        const res = await fetch(`/api/customers/${editingCustomer.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to update")
+        toast.success("Customer updated")
+      } else {
+        const res = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to create")
+        toast.success("Customer created")
       }
-      setCustomers((prev) => [...prev, newCustomer])
+      setDialogOpen(false)
+      await fetchCustomers()
+    } catch {
+      toast.error(editingCustomer ? "Failed to update customer" : "Failed to create customer")
+    } finally {
+      setSaving(false)
     }
-    setDialogOpen(false)
   }
 
   return (
@@ -145,48 +183,54 @@ export default function CustomersPage() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Loyalty Points</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.phone || "\u2014"}</TableCell>
-                  <TableCell>{customer.email || "\u2014"}</TableCell>
-                  <TableCell>{customer.address || "\u2014"}</TableCell>
-                  <TableCell>
-                    <Badge variant="warning">{customer.loyalty_points}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(customer)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openHistory(customer)}>
-                        <ShoppingBag className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredCustomers.length === 0 && (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-gray-500">
-                    No customers found
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Loyalty Points</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.phone || "\u2014"}</TableCell>
+                    <TableCell>{customer.email || "\u2014"}</TableCell>
+                    <TableCell>{customer.address || "\u2014"}</TableCell>
+                    <TableCell>
+                      <Badge variant="warning">{customer.loyalty_points}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(customer)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openHistory(customer)}>
+                          <ShoppingBag className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCustomers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-gray-500">
+                      No customers found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -234,7 +278,9 @@ export default function CustomersPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editingCustomer ? "Update" : "Save"}</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : editingCustomer ? "Update" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

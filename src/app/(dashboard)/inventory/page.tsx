@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { mockProducts } from "@/lib/mock-data"
-import { Package, Plus, Minus, AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
+import { Package, Plus, Minus, AlertTriangle, Loader2 } from "lucide-react"
 import type { Product } from "@/types"
 
 type Tab = "overview" | "stock-in" | "stock-out" | "alerts"
@@ -23,17 +23,39 @@ function getStatus(product: Product) {
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview")
   const [search, setSearch] = useState("")
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredProducts = mockProducts.filter(
+  const fetchProducts = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/products")
+      if (!res.ok) throw new Error("Failed to fetch products")
+      const data = await res.json()
+      setProducts(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load products")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase())
   )
 
-  const lowStockProducts = mockProducts.filter(
+  const lowStockProducts = products.filter(
     (p) => p.stock_quantity > 0 && p.stock_quantity < p.min_stock_level
   )
-  const outOfStockProducts = mockProducts.filter((p) => p.stock_quantity === 0)
+  const outOfStockProducts = products.filter((p) => p.stock_quantity === 0)
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "overview", label: "Stock Overview" },
@@ -75,47 +97,60 @@ export default function InventoryPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Stock Quantity</TableHead>
-                  <TableHead>Min Level</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => {
-                  const status = getStatus(product)
-                  return (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-gray-500">{product.sku}</TableCell>
-                      <TableCell>{product.stock_quantity} {product.unit}</TableCell>
-                      <TableCell>{product.min_stock_level} {product.unit}</TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Package className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-red-600">{error}</p>
+                <Button variant="outline" className="mt-4" onClick={fetchProducts}>
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Stock Quantity</TableHead>
+                    <TableHead>Min Level</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => {
+                    const status = getStatus(product)
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell className="text-gray-500">{product.sku}</TableCell>
+                        <TableCell>{product.stock_quantity} {product.unit}</TableCell>
+                        <TableCell>{product.min_stock_level} {product.unit}</TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">
+                              <Package className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {activeTab === "stock-in" && <StockForm type="in" />}
-      {activeTab === "stock-out" && <StockForm type="out" />}
+      {activeTab === "stock-in" && <StockForm type="in" products={products} />}
+      {activeTab === "stock-out" && <StockForm type="out" products={products} />}
 
       {activeTab === "alerts" && (
         <div className="space-y-6">
@@ -184,19 +219,19 @@ export default function InventoryPage() {
   )
 }
 
-function StockForm({ type }: { type: "in" | "out" }) {
+function StockForm({ type, products }: { type: "in" | "out"; products: Product[] }) {
   const [productId, setProductId] = useState("")
   const [quantity, setQuantity] = useState("")
   const [reason, setReason] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [message, setMessage] = useState<string | null>(null)
 
-  const productOptions = mockProducts.map((p) => ({
+  const productOptions = products.map((p) => ({
     value: p.id,
     label: `${p.name} (${p.sku}) — Stock: ${p.stock_quantity}`,
   }))
 
-  const selectedProduct = mockProducts.find((p) => p.id === productId)
+  const selectedProduct = products.find((p) => p.id === productId)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -214,6 +249,7 @@ function StockForm({ type }: { type: "in" | "out" }) {
       return
     }
     setMessage(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
+    toast.success(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
     setProductId("")
     setQuantity("")
     setReason("")

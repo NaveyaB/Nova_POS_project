@@ -2,49 +2,51 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthStore } from "@/lib/store"
-import { mockUsers } from "@/lib/mock-data"
+import { createSupabaseBrowserClient } from "@/lib/supabase-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, Eye, EyeOff } from "lucide-react"
+
+const quickUsers = [
+  { email: "admin@smartpos.com", label: "Naveya (Admin)", role: "admin" },
+  { email: "manager@smartpos.com", label: "Karthik (Manager)", role: "manager" },
+  { email: "cashier1@smartpos.com", label: "Meena (Cashier)", role: "cashier" },
+]
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
-  const [remember, setRemember] = useState(false)
-  const setUser = useAuthStore((s) => s.setUser)
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setLoading(true)
 
-    const found = mockUsers.find((u) => u.email === email)
-    if (!found) {
-      setError("Invalid email or password")
+    const supabase = createSupabaseBrowserClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    setLoading(false)
+
+    if (signInError) {
+      setError(signInError.message === "Invalid login credentials"
+        ? "Invalid email or password"
+        : signInError.message)
       return
     }
 
-    if (password !== "password") {
-      setError("Invalid email or password")
-      return
-    }
-
-    setUser(found)
-    if (remember) {
-      localStorage.setItem("pos_user", JSON.stringify({ email }))
-    }
     router.push("/")
   }
 
-  const fillCredentials = (role: string) => {
-    const u = mockUsers.find((mu) => mu.role === role)
-    if (u) {
-      setEmail(u.email)
-      setPassword("password")
-    }
+  const fillCredentials = (e: string) => {
+    setEmail(e)
+    setPassword("password")
   }
 
   return (
@@ -56,16 +58,14 @@ export default function LoginPage() {
               <ShoppingCart className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">SmartPOS</h1>
+              <h1 className="text-2xl font-bold text-gray-900">NovaPOS</h1>
               <p className="text-sm text-gray-500">Inventory & Billing System</p>
             </div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <Input
                 type="email"
                 placeholder="admin@smartpos.com"
@@ -76,9 +76,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
@@ -97,51 +95,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                Remember Me
-              </label>
-              <button type="button" className="text-sm text-blue-600 hover:underline">
-                Forgot Password?
-              </button>
-            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
-
-            <Button type="submit" className="w-full">
-              Sign In
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
           <div className="mt-8 border-t pt-6">
             <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Password: password)</p>
             <div className="flex gap-2">
-              <button
-                onClick={() => fillCredentials("admin")}
-                className="flex-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
-              >
-                Naveya (Admin)
-              </button>
-              <button
-                onClick={() => fillCredentials("manager")}
-                className="flex-1 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-100"
-              >
-                Karthik (Manager)
-              </button>
-              <button
-                onClick={() => fillCredentials("cashier")}
-                className="flex-1 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-100"
-              >
-                Meena (Cashier)
-              </button>
+              {quickUsers.map((u) => (
+                <button
+                  key={u.role}
+                  onClick={() => fillCredentials(u.email)}
+                  className="flex-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  {u.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -152,7 +124,7 @@ export default function LoginPage() {
           <div className="flex h-full items-center justify-center p-12">
             <div className="text-center text-white">
               <ShoppingCart className="mx-auto h-24 w-24 mb-6 opacity-80" />
-              <h2 className="text-3xl font-bold mb-4">SmartPOS System</h2>
+              <h2 className="text-3xl font-bold mb-4">NovaPOS System</h2>
               <p className="text-lg text-blue-100 max-w-md">
                 Complete Point of Sale solution with inventory management,
                 billing, and real-time reporting.

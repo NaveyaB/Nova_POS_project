@@ -1,5 +1,7 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import type { DashboardStats } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Package, AlertTriangle, Users, ShoppingCart, TrendingUp } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
@@ -56,45 +58,72 @@ const recentActivities = [
 ]
 
 export default function DashboardPage() {
-  const stats = [
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((data) => { setStats(data); setLoading(false) })
+      .catch(() => { setError("Failed to load dashboard"); setLoading(false) })
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>
+      </div>
+    )
+  }
+
+  const statCards = [
     {
       title: "Today's Sales",
-      value: formatCurrency(24580),
+      value: formatCurrency(stats?.today_sales ?? 0),
       icon: DollarSign,
       change: "+12%",
       color: "bg-blue-500",
     },
     {
       title: "Monthly Sales",
-      value: formatCurrency(482300),
+      value: formatCurrency(stats?.monthly_sales ?? 0),
       icon: TrendingUp,
       change: "+8%",
       color: "bg-green-500",
     },
     {
       title: "Total Products",
-      value: "10",
+      value: String(stats?.total_products ?? 0),
       icon: Package,
-      change: "10 active",
+      change: `${stats?.total_products ?? 0} active`,
       color: "bg-purple-500",
     },
     {
       title: "Low Stock Items",
-      value: "2",
+      value: String(stats?.low_stock_products ?? 0),
       icon: AlertTriangle,
       change: "Needs attention",
       color: "bg-red-500",
     },
     {
       title: "Total Customers",
-      value: "5",
+      value: String(stats?.total_customers ?? 0),
       icon: Users,
-      change: "+5 this month",
+      change: `+${stats?.total_customers ?? 0} this month`,
       color: "bg-yellow-500",
     },
     {
       title: "Total Orders",
-      value: "125",
+      value: String(stats?.total_orders ?? 0),
       icon: ShoppingCart,
       change: "+5 today",
       color: "bg-indigo-500",
@@ -106,7 +135,7 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.title}>
@@ -236,26 +265,21 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3">
-              <div>
-                <p className="font-medium text-gray-900">Wireless Mouse</p>
-                <p className="text-sm text-gray-500">SKU: PRD009</p>
+            {stats?.low_stock_items?.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3">
+                <div>
+                  <p className="font-medium text-gray-900">{item.name}</p>
+                  <p className="text-sm text-gray-500">SKU: {item.sku}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-red-600">{item.stock_quantity}</p>
+                  <p className="text-xs text-red-500">Min: {item.min_stock_level}</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-red-600">18</p>
-                <p className="text-xs text-red-500">Only 18 Left</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3">
-              <div>
-                <p className="font-medium text-gray-900">USB Keyboard</p>
-                <p className="text-sm text-gray-500">SKU: PRD008</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-red-600">25</p>
-                <p className="text-xs text-red-500">Only 25 Left</p>
-              </div>
-            </div>
+            ))}
+            {(!stats?.low_stock_items || stats.low_stock_items.length === 0) && (
+              <p className="text-sm text-gray-500">No low stock items.</p>
+            )}
           </div>
         </CardContent>
       </Card>

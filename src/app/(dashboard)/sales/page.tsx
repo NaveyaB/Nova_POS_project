@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { mockSales } from "@/lib/mock-data"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
-import { Eye, Printer, RotateCcw, X } from "lucide-react"
+import { Eye, Printer, RotateCcw, X, Download, Loader2 } from "lucide-react"
+import { Receipt, ReceiptActions } from "@/components/invoice/receipt"
 import type { Sale } from "@/types"
 
 type DateFilter = "all" | "today" | "weekly" | "monthly"
@@ -33,44 +33,39 @@ function getStatusVariant(status: Sale["status"]) {
   return map[status] || "default"
 }
 
-function isWithinRange(dateStr: string, filter: DateFilter) {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-  if (filter === "today") {
-    return date >= startOfDay
-  }
-  if (filter === "weekly") {
-    const weekAgo = new Date(startOfDay)
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    return date >= weekAgo
-  }
-  if (filter === "monthly") {
-    const monthAgo = new Date(startOfDay)
-    monthAgo.setMonth(monthAgo.getMonth() - 1)
-    return date >= monthAgo
-  }
-  return true
-}
-
 export default function SalesPage() {
   const [search, setSearch] = useState("")
   const [dateFilter, setDateFilter] = useState<DateFilter>("all")
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
+  const [printSale, setPrintSale] = useState<Sale | null>(null)
+  const [sales, setSales] = useState<Sale[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredSales = useMemo(() => {
-    return mockSales.filter((sale) => {
-      const matchesSearch =
-        sale.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-        (sale.customer_name || "").toLowerCase().includes(search.toLowerCase())
-      const matchesDate = isWithinRange(sale.created_at, dateFilter)
-      return matchesSearch && matchesDate
-    })
+  const fetchSales = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set("search", search)
+      if (dateFilter !== "all") params.set("dateFilter", dateFilter)
+      const res = await fetch(`/api/sales${params.toString() ? `?${params.toString()}` : ""}`)
+      if (!res.ok) throw new Error("Failed to fetch sales")
+      const data = await res.json()
+      setSales(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load sales")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSales()
   }, [search, dateFilter])
 
-  const totalSales = filteredSales.length
-  const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0)
+  const totalSales = sales.length
+  const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
   const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0
 
   const dateFilters: { key: DateFilter; label: string }[] = [
@@ -131,54 +126,67 @@ export default function SalesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell className="font-medium">{sale.invoice_number}</TableCell>
-                  <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
-                  <TableCell className="text-gray-500">{formatDateTime(sale.created_at)}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(sale.total)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getPaymentVariant(sale.payment_method)} className="capitalize">
-                      {sale.payment_method.replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(sale.status)} className="capitalize">
-                      {sale.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedSale(sale)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      {sale.status === "completed" && (
-                        <Button variant="ghost" size="icon">
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-red-600">{error}</p>
+              <Button variant="outline" className="mt-4" onClick={fetchSales}>
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sales.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-medium">{sale.invoice_number}</TableCell>
+                    <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
+                    <TableCell className="text-gray-500">{formatDateTime(sale.created_at)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(sale.total)}</TableCell>
+                    <TableCell>
+                      <Badge variant={getPaymentVariant(sale.payment_method)} className="capitalize">
+                        {sale.payment_method.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(sale.status)} className="capitalize">
+                        {sale.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedSale(sale)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setPrintSale(sale)}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        {sale.status === "completed" && (
+                          <Button variant="ghost" size="icon">
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -194,7 +202,7 @@ export default function SalesPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-500">Customer</p>
                   <p className="font-medium">{selectedSale.customer_name || "Walk-in"}</p>
@@ -208,24 +216,45 @@ export default function SalesPage() {
                   <p className="font-medium">{formatDateTime(selectedSale.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Payment Method</p>
+                  <p className="text-gray-500">Payment</p>
                   <Badge variant={getPaymentVariant(selectedSale.payment_method)} className="capitalize">
                     {selectedSale.payment_method.replace("_", " ")}
                   </Badge>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
+              {selectedSale.items.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="mb-2 text-sm font-medium text-gray-500">Items</p>
+                  <div className="space-y-1.5">
+                    {selectedSale.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-sm">
+                        <div className="flex-1">
+                          <p className="text-gray-900">{item.product_name}</p>
+                          <p className="text-xs text-gray-400">
+                            {item.quantity} x {formatCurrency(item.price)}
+                          </p>
+                        </div>
+                        <p className="font-medium">{formatCurrency(item.subtotal)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t pt-3">
                 <p className="mb-2 text-sm font-medium text-gray-500">Order Summary</p>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Subtotal</span>
                     <span>{formatCurrency(selectedSale.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Discount</span>
-                    <span className="text-red-600">-{formatCurrency(selectedSale.discount)}</span>
-                  </div>
+                  {selectedSale.discount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Discount</span>
+                      <span className="text-red-600">-{formatCurrency(selectedSale.discount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-500">Tax</span>
                     <span>{formatCurrency(selectedSale.tax)}</span>
@@ -238,7 +267,7 @@ export default function SalesPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setPrintSale(selectedSale)}>
                   <Printer className="mr-2 h-4 w-4" />
                   Print
                 </Button>
@@ -248,6 +277,18 @@ export default function SalesPage() {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      <Dialog open={!!printSale} onOpenChange={(open) => { if (!open) setPrintSale(null) }}>
+        {printSale && (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invoice {printSale.invoice_number}</DialogTitle>
+            </DialogHeader>
+            <Receipt sale={printSale} />
+            <ReceiptActions sale={printSale} onClose={() => setPrintSale(null)} />
           </DialogContent>
         )}
       </Dialog>

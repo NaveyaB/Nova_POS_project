@@ -1,38 +1,73 @@
 "use client"
 
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuthStore } from "./store"
-import { mockUsers } from "./mock-data"
+import { createSupabaseBrowserClient } from "./supabase-client"
 
 const publicRoutes = ["/login"]
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const user = useAuthStore((s) => s.user)
-  const setUser = useAuthStore((s) => s.setUser)
-  const isLoading = useAuthStore((s) => s.isLoading)
-  const setLoading = useAuthStore((s) => s.setLoading)
+  const { user, setUser, logout } = useAuthStore()
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    const stored = localStorage.getItem("pos_user")
-    if (stored) {
-      const u = JSON.parse(stored)
-      const found = mockUsers.find((mu) => mu.email === u.email)
-      if (found) setUser(found)
-    }
-    setLoading(false)
-  }, [setUser, setLoading])
+    const supabase = createSupabaseBrowserClient()
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single()
+        if (profile) {
+          setUser({
+            id: (profile as any).id,
+            email: (profile as any).email,
+            name: (profile as any).name,
+            role: (profile as any).role,
+            phone: (profile as any).phone || undefined,
+            created_at: (profile as any).created_at,
+          })
+        }
+      }
+      setIsLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        logout()
+        router.push("/login")
+      } else if (event === "SIGNED_IN" && session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single()
+        if (profile) {
+          setUser({
+            id: (profile as any).id,
+            email: (profile as any).email,
+            name: (profile as any).name,
+            role: (profile as any).role,
+            phone: (profile as any).phone || undefined,
+            created_at: (profile as any).created_at,
+          })
+        }
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [setUser, logout, router])
 
   useEffect(() => {
     if (isLoading) return
     const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
     if (!user && !isPublic) {
       router.push("/login")
-    }
-    if (user && isPublic) {
-      router.push("/")
     }
   }, [user, isLoading, pathname, router])
 

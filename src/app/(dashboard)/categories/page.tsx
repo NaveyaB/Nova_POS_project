@@ -1,23 +1,43 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Edit, Trash2 } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
-import { mockCategories } from "@/lib/mock-data"
+import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
 import type { Category } from "@/types"
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formData, setFormData] = useState({ name: "", description: "" })
+  const [saving, setSaving] = useState(false)
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/categories")
+      if (!res.ok) throw new Error("Failed to load categories")
+      const data = await res.json()
+      setCategories(Array.isArray(data) ? data : data.data ?? [])
+    } catch {
+      toast.error("Failed to load categories")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const filtered = categories.filter(
     (c) =>
@@ -37,30 +57,45 @@ export default function CategoriesPage() {
     setDialogOpen(true)
   }
 
-  const handleSave = () => {
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingCategory.id
-            ? { ...c, name: formData.name, description: formData.description, updated_at: new Date().toISOString().split("T")[0] }
-            : c
-        )
-      )
-    } else {
-      const newCategory: Category = {
-        id: `cat${Date.now()}`,
-        name: formData.name,
-        description: formData.description,
-        created_at: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
+  const handleSave = async () => {
+    if (!formData.name) return
+    setSaving(true)
+    try {
+      if (editingCategory) {
+        const res = await fetch(`/api/categories/${editingCategory.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to update")
+        toast.success("Category updated")
+      } else {
+        const res = await fetch("/api/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
+        if (!res.ok) throw new Error("Failed to create")
+        toast.success("Category created")
       }
-      setCategories((prev) => [...prev, newCategory])
+      setDialogOpen(false)
+      await fetchCategories()
+    } catch {
+      toast.error(editingCategory ? "Failed to update category" : "Failed to create category")
+    } finally {
+      setSaving(false)
     }
-    setDialogOpen(false)
   }
 
-  const handleDelete = (id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id))
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/categories/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      toast.success("Category deleted")
+      await fetchCategories()
+    } catch {
+      toast.error("Failed to delete category")
+    }
   }
 
   return (
@@ -86,37 +121,50 @@ export default function CategoriesPage() {
             />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Products Count</TableHead>
-                <TableHead>Created Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell className="text-gray-500">{category.description || "-"}</TableCell>
-                  <TableCell>{category.name.length * 3 + 5}</TableCell>
-                  <TableCell>{formatDate(category.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Products Count</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className="text-gray-500">{category.description || "-"}</TableCell>
+                    <TableCell>{category.name.length * 3 + 5}</TableCell>
+                    <TableCell>{formatDate(category.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-8 text-center text-gray-500">
+                      No categories found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -147,8 +195,8 @@ export default function CategoriesPage() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={!formData.name}>
-                {editingCategory ? "Update" : "Create"}
+              <Button onClick={handleSave} disabled={!formData.name || saving}>
+                {saving ? "Saving..." : editingCategory ? "Update" : "Create"}
               </Button>
             </div>
           </div>
