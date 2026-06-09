@@ -24,8 +24,9 @@
 
 ## 🚀 Live Demo
 
+<!-- Ippadi mathuna click panna direct-ah open aagum -->
 <p align="center">
-  <a href="[https://your-live-demo-link.vercel.app](https://nova-pos-project.vercel.app/)">
+  <a href="https://nova-pos-project.vercel.app/" target="_blank">
     <img src="https://img.shields.io/badge/🚀%20LIVE%20DEMO-CLICK%20HERE-00E5FF?style=for-the-badge&logo=vercel&logoColor=black" />
   </a>
 </p>
