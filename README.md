@@ -36,7 +36,8 @@
 
 <p align="center">
   <!-- replace img1 with your image url -->
-  <img src="https://via.placeholder.com/900x450/0d0d0d/00E5FF?text=Nova+POS+Dashboard+Preview" width="95%" style="border-radius: 15px;" />
+  <img src=./screenshots/dashboard.png width="95%" style="border-radius: 15px;" />
+  
 </p>
 
 ---
@@ -69,8 +70,9 @@ graph LR
 ScreenShots
 
 <p align="center">
-<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Billing+UI" width="48%" />
-<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Inventory+Control" width="48%" />
+<img src=./screenshots/reports.png width="48%" />
+<img src=./screenshots/sales.png width="48%" />
+  <img src=./screenshots/products.png width="48%" />
 </p>
 
  GitHub Analytics
