@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<!-- ================= ANIMATED HEADER ================= -->
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=28&duration=2800&pause=800&color=00F7FF&center=true&vCenter=true&width=800&lines=Nova+POS+System;Smart+Point+of+Sale+Application;Inventory+%7C+Billing+%7C+Sales+Management;Built+for+Speed+and+Efficiency" />
+</p>
 
-## Getting Started
+---
 
-First, run the development server:
+<!-- ================= BADGES ================= -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Frontend-React%2FHTML%2FCSS-blue" />
+  <img src="https://img.shields.io/badge/Backend-Node.js-green" />
+  <img src="https://img.shields.io/badge/Database-SQL%2FNoSQL-orange" />
+  <img src="https://img.shields.io/badge/Status-Active-success" />
+</p>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# 🧾 Nova POS System
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+A modern **Point of Sale (POS) application** designed to streamline retail operations like product management, billing, inventory tracking, and sales analytics.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🚀 Overview
 
-To learn more about Next.js, take a look at the following resources:
+Nova POS is built to simplify business operations by providing a **fast, reliable, and user-friendly system** for managing daily sales and stock.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+It helps shop owners and admins:
+- Manage products efficiently
+- Generate invoices instantly
+- Track sales history
+- Monitor inventory in real time
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## ⚙️ Key Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 🛒 Product Management (Add / Update / Delete)
+- 📦 Inventory Control System
+- 💰 Smart Billing & Invoice Generator
+- 🔍 Search & Filter Products
+- 📊 Sales Dashboard & Reports
+- 👤 Admin Authentication System
+- 📱 Fully Responsive UI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🛠️ Tech Stack
+
+```txt
+Frontend  → HTML, CSS, JavaScript / React
+Backend   → Node.js / Express (if used)
+Database  → MySQL / MongoDB / Supabase
+Styling   → Tailwind CSS / Bootstrap
