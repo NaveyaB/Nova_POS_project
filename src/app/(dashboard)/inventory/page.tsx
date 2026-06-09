@@ -1,0 +1,291 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
+import { SearchInput } from "@/components/ui/search-input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { mockProducts } from "@/lib/mock-data"
+import { Package, Plus, Minus, AlertTriangle } from "lucide-react"
+import type { Product } from "@/types"
+
+type Tab = "overview" | "stock-in" | "stock-out" | "alerts"
+
+function getStatus(product: Product) {
+  if (product.stock_quantity === 0) return { label: "Out of Stock", variant: "destructive" as const }
+  if (product.stock_quantity < product.min_stock_level) return { label: "Low Stock", variant: "warning" as const }
+  return { label: "In Stock", variant: "success" as const }
+}
+
+export default function InventoryPage() {
+  const [activeTab, setActiveTab] = useState<Tab>("overview")
+  const [search, setSearch] = useState("")
+
+  const filteredProducts = mockProducts.filter(
+    (p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.sku.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const lowStockProducts = mockProducts.filter(
+    (p) => p.stock_quantity > 0 && p.stock_quantity < p.min_stock_level
+  )
+  const outOfStockProducts = mockProducts.filter((p) => p.stock_quantity === 0)
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "overview", label: "Stock Overview" },
+    { key: "stock-in", label: "Stock In" },
+    { key: "stock-out", label: "Stock Out" },
+    { key: "alerts", label: "Alerts" },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
+
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 w-fit">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === tab.key
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Stock Overview</CardTitle>
+              <SearchInput
+                placeholder="Search products..."
+                value={search}
+                onChange={setSearch}
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product Name</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Stock Quantity</TableHead>
+                  <TableHead>Min Level</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => {
+                  const status = getStatus(product)
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-gray-500">{product.sku}</TableCell>
+                      <TableCell>{product.stock_quantity} {product.unit}</TableCell>
+                      <TableCell>{product.min_stock_level} {product.unit}</TableCell>
+                      <TableCell>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <Package className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "stock-in" && <StockForm type="in" />}
+      {activeTab === "stock-out" && <StockForm type="out" />}
+
+      {activeTab === "alerts" && (
+        <div className="space-y-6">
+          {outOfStockProducts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  Out of Stock
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {outOfStockProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4"
+                  >
+                    <div>
+                      <p className="font-medium text-red-900">{product.name}</p>
+                      <p className="text-sm text-red-700">SKU: {product.sku}</p>
+                    </div>
+                    <Badge variant="destructive">0 Available</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {lowStockProducts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  Low Stock
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lowStockProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-4"
+                  >
+                    <div>
+                      <p className="font-medium text-yellow-900">{product.name}</p>
+                      <p className="text-sm text-yellow-700">Min Level: {product.min_stock_level} {product.unit}</p>
+                    </div>
+                    <Badge variant="warning">Only {product.stock_quantity} Left</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {outOfStockProducts.length === 0 && lowStockProducts.length === 0 && (
+            <Card>
+              <CardContent className="p-12 text-center text-gray-500">
+                <Package className="mx-auto h-12 w-12 text-gray-300" />
+                <p className="mt-4 text-lg font-medium">All Stock Levels Normal</p>
+                <p className="text-sm">No alerts at this time</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StockForm({ type }: { type: "in" | "out" }) {
+  const [productId, setProductId] = useState("")
+  const [quantity, setQuantity] = useState("")
+  const [reason, setReason] = useState("")
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [message, setMessage] = useState<string | null>(null)
+
+  const productOptions = mockProducts.map((p) => ({
+    value: p.id,
+    label: `${p.name} (${p.sku}) — Stock: ${p.stock_quantity}`,
+  }))
+
+  const selectedProduct = mockProducts.find((p) => p.id === productId)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!productId || !quantity || !reason) {
+      setMessage("Please fill all fields")
+      return
+    }
+    const qty = Number(quantity)
+    if (qty <= 0) {
+      setMessage("Quantity must be positive")
+      return
+    }
+    if (type === "out" && selectedProduct && qty > selectedProduct.stock_quantity) {
+      setMessage("Insufficient stock")
+      return
+    }
+    setMessage(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
+    setProductId("")
+    setQuantity("")
+    setReason("")
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {type === "in" ? (
+            <><Plus className="h-5 w-5 text-green-600" /> Stock In</>
+          ) : (
+            <><Minus className="h-5 w-5 text-red-600" /> Stock Out</>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Product</label>
+            <Select
+              options={productOptions}
+              placeholder="Select a product"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Quantity</label>
+            <Input
+              type="number"
+              min="1"
+              placeholder="Enter quantity"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Reason</label>
+            <Input
+              placeholder="e.g. Supplier restock, damaged, expiry"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Date</label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+
+          <Button type="submit" variant={type === "in" ? "default" : "destructive"}>
+            {type === "in" ? "Add Stock" : "Remove Stock"}
+          </Button>
+
+          {message && (
+            <p
+              className={`text-sm ${
+                message.includes("successfully") ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {message}
+            </p>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
