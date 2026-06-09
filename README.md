@@ -65,30 +65,3 @@ graph LR
   style A fill:#00E5FF,stroke:#333
   style F fill:#00FF88,stroke:#333
 
-<p align="center">
-<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Billing+UI" width="48%" />
-<img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Inventory+Control" width="48%" />
-</p>
-
-Nova_POS_project/
-├── app/            # Next.js App Router (Pages & Layouts)
-├── components/     # Reusable UI Components
-├── lib/            # Utility functions & Supabase Client
-├── public/         # Static Assets (Images, Icons)
-├── supabase/       # Database Schemas & Migrations
-└── types/          # TypeScript Definitions
-
-<p align="center">
-<img src="https://github-readme-stats.vercel.app/api?username=NaveyaB&show_icons=true&theme=tokyonight" width="48%" />
-<img src="https://github-readme-streak-stats.herokuapp.com/?user=NaveyaB&theme=tokyonight" width="48%" />
-</p>
-👨‍💻 Developer
-Naveya B
-Frontend Developer | Next.js Enthusiast | Supabase Explorer
-<p align="left">
-<a href="https://github.com/NaveyaB">
-<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
-</a>
-</p>
-<p align="center"> <b>Built with ⚡ precision, speed & modern UI thinking</b> </p>
-```
