@@ -7,7 +7,7 @@
 
 <!-- ================= 3D GLOW BADGES ================= -->
 <p align="center">
-  <img src=./screenshots/dashboard.png />
+  
   <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black&labelColor=0d0d0d" />
   <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white&labelColor=0d0d0d" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white&labelColor=0d0d0d" />
@@ -72,7 +72,8 @@ ScreenShots
 <p align="center">
 <img src=./screenshots/reports.png width="48%" />
 <img src=./screenshots/sales.png width="48%" />
-  <img src=./screenshots/products.png width="48%" />
+<img src=./screenshots/products.png width="48%" />
+  <img src=./screenshots/suppliers.png width="48%" />
 </p>
 
  GitHub Analytics
