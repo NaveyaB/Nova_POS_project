@@ -25,7 +25,7 @@
 ## 🚀 Live Demo
 
 <p align="center">
-  <a href="https://your-live-demo-link.vercel.app">
+  <a href="[https://your-live-demo-link.vercel.app](https://nova-pos-project.vercel.app/)">
     <img src="https://img.shields.io/badge/🚀%20LIVE%20DEMO-CLICK%20HERE-00E5FF?style=for-the-badge&logo=vercel&logoColor=black" />
   </a>
 </p>
@@ -65,13 +65,16 @@ graph LR
   style A fill:#00E5FF,stroke:#333
   style F fill:#00FF88,stroke:#333
 ```
+
 ScreenShots
+
 <p align="center">
 <img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Billing+UI" width="48%" />
 <img src="https://via.placeholder.com/400x250/0d0d0d/00E5FF?text=Inventory+Control" width="48%" />
 </p>
 
  GitHub Analytics
+ 
 <p align="center">
 <img src="https://github-readme-stats.vercel.app/api?username=NaveyaB&show_icons=true&theme=tokyonight" width="48%" />
 <img src="https://github-readme-streak-stats.herokuapp.com/?user=NaveyaB&theme=tokyonight" width="48%" />
@@ -89,4 +92,3 @@ Frontend Developer | Next.js Enthusiast | Supabase Explorer
 </p>
 
 <p align="center"> <b>Built with ⚡ precision, speed & modern UI thinking</b> </p>
-```
