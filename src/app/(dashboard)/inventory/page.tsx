@@ -10,7 +10,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Package, Plus, Minus, AlertTriangle, Loader2 } from "lucide-react"
-import type { Product } from "@/types"
+import type { Product, StockMovement } from "@/types"
 
 type Tab = "overview" | "stock-in" | "stock-out" | "alerts"
 
@@ -225,6 +225,7 @@ function StockForm({ type, products }: { type: "in" | "out"; products: Product[]
   const [reason, setReason] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [message, setMessage] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const productOptions = products.map((p) => ({
     value: p.id,
@@ -233,8 +234,10 @@ function StockForm({ type, products }: { type: "in" | "out"; products: Product[]
 
   const selectedProduct = products.find((p) => p.id === productId)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setMessage(null)
+
     if (!productId || !quantity || !reason) {
       setMessage("Please fill all fields")
       return
@@ -248,11 +251,36 @@ function StockForm({ type, products }: { type: "in" | "out"; products: Product[]
       setMessage("Insufficient stock")
       return
     }
-    setMessage(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
-    toast.success(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
-    setProductId("")
-    setQuantity("")
-    setReason("")
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/stock-movements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: productId,
+          type,
+          quantity: qty,
+          reason,
+          reference: date,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to record movement")
+      }
+
+      toast.success(`${type === "in" ? "Stock In" : "Stock Out"} recorded successfully`)
+      setProductId("")
+      setQuantity("")
+      setReason("")
+    } catch (err: any) {
+      setMessage(err.message)
+      toast.error(err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -307,8 +335,8 @@ function StockForm({ type, products }: { type: "in" | "out"; products: Product[]
             />
           </div>
 
-          <Button type="submit" variant={type === "in" ? "default" : "destructive"}>
-            {type === "in" ? "Add Stock" : "Remove Stock"}
+          <Button type="submit" variant={type === "in" ? "default" : "destructive"} disabled={submitting}>
+            {submitting ? "Processing..." : type === "in" ? "Add Stock" : "Remove Stock"}
           </Button>
 
           {message && (

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createSupabaseBrowserClient } from "@/lib/supabase-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, Eye, EyeOff } from "lucide-react"
@@ -26,22 +25,29 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    const supabase = createSupabaseBrowserClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
 
-    setLoading(false)
+      const data = await res.json()
 
-    if (signInError) {
-      setError(signInError.message === "Invalid login credentials"
-        ? "Invalid email or password"
-        : signInError.message)
-      return
+      if (!res.ok) {
+        setError(data.error === "Invalid login credentials"
+          ? "Invalid email or password"
+          : data.error)
+        return
+      }
+
+      router.push("/")
+      router.refresh()
+    } catch {
+      setError("Network error. Please try again.")
+    } finally {
+      setLoading(false)
     }
-
-    router.push("/")
   }
 
   const fillCredentials = (e: string) => {

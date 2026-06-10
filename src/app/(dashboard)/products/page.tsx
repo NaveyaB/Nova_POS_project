@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import Image from "next/image"
+import { Plus, Edit, Trash2, Loader2, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -193,6 +194,16 @@ export default function ProductsPage() {
             <div className="rounded-md bg-red-50 p-4 text-center text-sm text-red-600">
               {error}
             </div>
+          ) : products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <Package className="mb-3 h-12 w-12" />
+              <p className="text-sm font-medium text-gray-900">No products found</p>
+              <p className="mt-1 text-xs">Add your first product to get started</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push("/products/new")}>
+                <Plus className="mr-1 h-4 w-4" />
+                Add Product
+              </Button>
+            </div>
           ) : (
             <>
               <Table>
@@ -210,15 +221,24 @@ export default function ProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginated.map((product: any) => {
+                  {paginated.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-16 text-gray-400">
+                        <Package className="mx-auto mb-2 h-8 w-8" />
+                        <p className="text-sm">No products match your search</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : paginated.map((product: any) => {
                     const status = getStatus(product.stock_quantity, product.min_stock_level)
                     return (
                       <TableRow key={product.id}>
                         <TableCell>
                           {product.image_url ? (
-                            <img
+                            <Image
                               src={product.image_url}
                               alt={product.name}
+                              width={40}
+                              height={40}
                               className="h-10 w-10 rounded-md object-cover"
                             />
                           ) : (

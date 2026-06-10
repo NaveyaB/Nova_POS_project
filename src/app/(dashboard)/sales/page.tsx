@@ -8,7 +8,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
-import { Eye, Printer, RotateCcw, X, Download, Loader2 } from "lucide-react"
+import { Eye, Printer, RotateCcw, X, Download, Loader2, FileText } from "lucide-react"
 import { Receipt, ReceiptActions } from "@/components/invoice/receipt"
 import type { Sale } from "@/types"
 
@@ -151,7 +151,14 @@ export default function SalesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((sale) => (
+                {sales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-16 text-gray-400">
+                      <FileText className="mx-auto mb-2 h-8 w-8" />
+                      <p className="text-sm">No sales found</p>
+                    </TableCell>
+                  </TableRow>
+                ) : sales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.invoice_number}</TableCell>
                     <TableCell>{sale.customer_name || "Walk-in"}</TableCell>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
-import { Store, DollarSign, Sun, Moon, Save } from "lucide-react"
+import { Store, DollarSign, Sun, Moon, Save, Database, Loader2 } from "lucide-react"
 import type { StoreSettings } from "@/types"
 
 const defaultSettings: StoreSettings = {
@@ -32,6 +32,19 @@ export default function SettingsPage() {
 
   function handlePosSave() {
     toast.success("POS settings saved successfully")
+  }
+
+  const applyTheme = (t: "light" | "dark") => {
+    setTheme(t)
+    try {
+      localStorage.setItem("pos_theme", t)
+      if (t === "dark") {
+        document.documentElement.classList.add("dark")
+      } else {
+        document.documentElement.classList.remove("dark")
+      }
+      toast.success(`${t === "dark" ? "Dark" : "Light"} mode enabled`)
+    } catch {}
   }
 
   return (
@@ -228,7 +241,7 @@ export default function SettingsPage() {
               <Button
                 variant={theme === "light" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTheme("light")}
+                onClick={() => applyTheme("light")}
               >
                 <Sun className="mr-2 h-4 w-4" />
                 Light
@@ -236,7 +249,7 @@ export default function SettingsPage() {
               <Button
                 variant={theme === "dark" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTheme("dark")}
+                onClick={() => applyTheme("dark")}
               >
                 <Moon className="mr-2 h-4 w-4" />
                 Dark
@@ -245,6 +258,61 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-gray-500" />
+            <CardTitle className="text-lg">Database Seed</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-gray-500">
+            Populate the database with sample categories, products, customers, suppliers, and sales history. This will not overwrite existing data.
+          </p>
+          <SeedButton />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function SeedButton() {
+  const [seeding, setSeeding] = useState(false)
+  const [result, setResult] = useState<string[] | null>(null)
+
+  const handleSeed = async () => {
+    setSeeding(true)
+    setResult(null)
+    try {
+      const res = await fetch("/api/seed", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Seed failed")
+        return
+      }
+      toast.success("Database seeded successfully!")
+      setResult(data.details || [])
+    } catch {
+      toast.error("Network error. Are you logged in?")
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Button onClick={handleSeed} disabled={seeding} variant="outline">
+        {seeding ? (
+          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Seeding...</>
+        ) : (
+          <><Database className="mr-2 h-4 w-4" /> Insert Sample Data</>
+        )}
+      </Button>
+      {result && result.length > 0 && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          {result.map((r, i) => <p key={i}>{r}</p>)}
+        </div>
+      )}
     </div>
   )
 }

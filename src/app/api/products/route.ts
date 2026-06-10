@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("products")
-    .select("*, categories(name)")
+    .select("*, categories(id, name)")
     .order("name")
 
   if (category && category !== "All") {
@@ -25,14 +25,14 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const products = data.map((p: any) => ({
+  const products = (data || []).map((p: any) => ({
     ...p,
     category_name: p.categories?.name || null,
     categories: undefined,
   }))
 
   if (lowStock === "true") {
-    return NextResponse.json(products.filter((p: any) => p.stock_quantity <= p.min_stock_level && p.stock_quantity > 0))
+    return NextResponse.json(products.filter((p: any) => p.stock_quantity > 0 && p.stock_quantity <= p.min_stock_level))
   }
 
   return NextResponse.json(products)

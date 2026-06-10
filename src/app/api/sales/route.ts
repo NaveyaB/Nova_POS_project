@@ -51,10 +51,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const year = new Date().getFullYear()
+  const { data: lastSale } = await supabase
+    .from("sales")
+    .select("invoice_number")
+    .ilike("invoice_number", `INV${year}%`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let counter = 1000
+  if (lastSale?.invoice_number) {
+    const match = lastSale.invoice_number.match(/\d{5}$/)
+    if (match) counter = parseInt(match[0], 10)
+  }
+  const invoiceNumber = `INV${year}${String(counter + 1).padStart(5, "0")}`
+
   const { data: sale, error: saleError } = await supabase
     .from("sales")
     .insert({
-      invoice_number: body.invoice_number,
+      invoice_number: invoiceNumber,
       customer_id: body.customer_id || null,
       user_id: session.user.id,
       subtotal: body.subtotal,
@@ -108,7 +124,7 @@ export async function POST(request: Request) {
           type: "out",
           quantity: item.quantity,
           reason: "sale",
-          reference: body.invoice_number,
+          reference: invoiceNumber,
           user_id: session.user.id,
         })
     }
