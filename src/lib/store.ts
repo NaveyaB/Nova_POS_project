@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import type { User, SaleItem, Customer } from "@/types"
 import { createSupabaseBrowserClient } from "./supabase-client"
-
+import { v4 as uuidv4 } from "uuid";
 interface AuthState {
   user: User | null
   setUser: (user: User | null) => void
