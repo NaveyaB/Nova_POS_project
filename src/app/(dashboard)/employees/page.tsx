@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { mockEmployees } from "@/lib/mock-data"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -52,17 +52,40 @@ const emptyForm: EmployeeFormData = {
 }
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
   const [form, setForm] = useState<EmployeeFormData>(emptyForm)
+  const [saving, setSaving] = useState(false)
 
-  const filtered = employees.filter(
-    (e) =>
-      e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.email.toLowerCase().includes(search.toLowerCase()) ||
-      e.phone.includes(search)
+  const fetchEmployees = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/employees")
+      if (!res.ok) throw new Error("Failed to load employees")
+      const data = await res.json()
+      setEmployees(Array.isArray(data) ? data : data.data ?? [])
+    } catch {
+      toast.error("Failed to load employees")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchEmployees()
+  }, [fetchEmployees])
+
+  const filtered = useMemo(() =>
+    employees.filter(
+      (e) =>
+        e.name.toLowerCase().includes(search.toLowerCase()) ||
+        e.email.toLowerCase().includes(search.toLowerCase()) ||
+        e.phone.includes(search)
+    ),
+    [employees, search]
   )
 
   const totalEmployees = employees.length
@@ -93,52 +116,61 @@ export default function EmployeesPage() {
     setDialogOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name || !form.email || !form.phone) {
       toast.error("Please fill all required fields")
       return
     }
 
-    if (editingEmployee) {
-      setEmployees((prev) =>
-        prev.map((e) =>
-          e.id === editingEmployee.id
-            ? { ...e, name: form.name, email: form.email, phone: form.phone, role: form.role }
-            : e
-        )
-      )
-      toast.success("Employee updated successfully")
-    } else {
-      if (!form.password) {
-        toast.error("Password is required")
+    setSaving(true)
+    try {
+      if (editingEmployee) {
+        const res = await fetch(`/api/employees/${editingEmployee.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            phone: form.phone,
+            role: form.role,
+            is_active: editingEmployee.is_active,
+          }),
+        })
+        if (!res.ok) throw new Error("Failed to update")
+        toast.success("Employee updated successfully")
+      } else {
+        if (!form.password) {
+          toast.error("Password is required")
+          return
+        }
+        toast.error("New employees must be created in Supabase Auth dashboard")
         return
       }
-      const newEmployee: Employee = {
-        id: `e${Date.now()}`,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        role: form.role,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-      setEmployees((prev) => [...prev, newEmployee])
-      toast.success("Employee added successfully")
+      setDialogOpen(false)
+      await fetchEmployees()
+    } catch {
+      toast.error("Failed to save employee")
+    } finally {
+      setSaving(false)
     }
-
-    setDialogOpen(false)
   }
 
-  function toggleStatus(employee: Employee) {
-    setEmployees((prev) =>
-      prev.map((e) =>
-        e.id === employee.id ? { ...e, is_active: !e.is_active } : e
-      )
-    )
-    toast.success(
-      `${employee.name} ${employee.is_active ? "deactivated" : "activated"}`
-    )
+  async function toggleStatus(employee: Employee) {
+    try {
+      const res = await fetch(`/api/employees/${employee.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...employee,
+          is_active: !employee.is_active,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to update status")
+      toast.success(`${employee.name} ${employee.is_active ? "deactivated" : "activated"}`)
+      await fetchEmployees()
+    } catch {
+      toast.error("Failed to update employee status")
+    }
   }
 
   return (
@@ -218,6 +250,11 @@ export default function EmployeesPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -274,6 +311,7 @@ export default function EmployeesPage() {
               )}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

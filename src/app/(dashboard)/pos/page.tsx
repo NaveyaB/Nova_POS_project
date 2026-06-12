@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { usePOSStore } from "@/lib/store"
+import Image from "next/image"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
+import { ProductImage } from "@/components/ui/product-image"
 import { Receipt, ReceiptActions } from "@/components/invoice/receipt"
 import type { Sale, SaleItem, Product, Customer } from "@/types"
 
@@ -275,7 +277,7 @@ export default function POSPage() {
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
               {filteredProducts.map((product) => {
-                const isLowStock = product.stock_quantity < 10 && product.stock_quantity > 0
+                const isLowStock = product.stock_quantity <= product.min_stock_level && product.stock_quantity > 0
                 const isOutOfStock = product.stock_quantity === 0
                 return (
                   <Card
@@ -287,9 +289,10 @@ export default function POSPage() {
                       if (!isOutOfStock) addToCart(product)
                     }}
                   >
-                    <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 text-4xl font-bold text-blue-400">
-                      {product.name.charAt(0)}
-                    </div>
+                    <ProductImage
+                      src={product.image_url}
+                      alt={product.name}
+                    />
                     <div className="space-y-1 p-3">
                       <div className="flex items-start justify-between gap-1">
                         <p className="line-clamp-1 text-sm font-medium text-gray-900">
@@ -480,9 +483,21 @@ function CartPanel({
           <div className="divide-y">
             {cart.map((item) => (
               <div key={item.id} className="flex items-center gap-3 p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-bold text-gray-500">
-                  {item.product_name.charAt(0)}
-                </div>
+                {item.image_url ? (
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+                    <Image
+                      src={item.image_url}
+                      alt={item.product_name}
+                      width={40}
+                      height={40}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-bold text-gray-500">
+                    {item.product_name.charAt(0)}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-900">{item.product_name}</p>
                   <p className="text-sm text-gray-500">{formatCurrency(item.price)}</p>

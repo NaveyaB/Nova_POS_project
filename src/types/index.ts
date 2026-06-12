@@ -69,6 +69,7 @@ export interface SaleItem {
   price: number
   subtotal: number
   gst_amount: number
+  image_url?: string
 }
 
 export interface Sale {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SearchInput } from "@/components/ui/search-input"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
-import type { Category } from "@/types"
+import type { Category, Product } from "@/types"
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -21,13 +22,30 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({ name: "", description: "" })
   const [saving, setSaving] = useState(false)
 
+  const productCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const p of products) {
+      if (p.category_id) {
+        map[p.category_id] = (map[p.category_id] || 0) + 1
+      }
+    }
+    return map
+  }, [products])
+
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/categories")
-      if (!res.ok) throw new Error("Failed to load categories")
-      const data = await res.json()
-      setCategories(Array.isArray(data) ? data : data.data ?? [])
+      const [catRes, prodRes] = await Promise.all([
+        fetch("/api/categories"),
+        fetch("/api/products"),
+      ])
+      if (!catRes.ok) throw new Error("Failed to load categories")
+      const catData = await catRes.json()
+      setCategories(Array.isArray(catData) ? catData : catData.data ?? [])
+      if (prodRes.ok) {
+        const prodData = await prodRes.json()
+        setProducts(Array.isArray(prodData) ? prodData : prodData.data ?? [])
+      }
     } catch {
       toast.error("Failed to load categories")
     } finally {
@@ -141,7 +159,7 @@ export default function CategoriesPage() {
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell className="text-gray-500">{category.description || "-"}</TableCell>
-                    <TableCell>{category.name.length * 3 + 5}</TableCell>
+                    <TableCell>{productCountMap[category.id] || 0}</TableCell>
                     <TableCell>{formatDate(category.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

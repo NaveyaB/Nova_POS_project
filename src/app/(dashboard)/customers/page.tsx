@@ -69,11 +69,15 @@ export default function CustomersPage() {
   }, [customers, search])
 
   const stats = useMemo(
-    () => ({
-      total: customers.length,
-      totalPoints: customers.reduce((sum, c) => sum + c.loyalty_points, 0),
-      newThisMonth: customers.filter((c) => c.created_at.startsWith("2026-06")).length,
-    }),
+    () => {
+      const now = new Date()
+      const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      return {
+        total: customers.length,
+        totalPoints: customers.reduce((sum, c) => sum + c.loyalty_points, 0),
+        newThisMonth: customers.filter((c) => c.created_at.startsWith(monthPrefix)).length,
+      }
+    },
     [customers]
   )
 

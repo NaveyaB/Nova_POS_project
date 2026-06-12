@@ -69,9 +69,12 @@ export default function ReportsPage() {
     fetchData()
   }, [])
 
-  const todayStr = "2026-06-08"
-
   const filteredSales = useMemo(() => {
+    const now = new Date()
+    const yearStr = String(now.getFullYear())
+    const monthStr = `${yearStr}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    const todayStr = `${yearStr}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+
     return sales.filter((sale) => {
       const saleDate = sale.created_at.split("T")[0]
       switch (period) {
@@ -87,9 +90,9 @@ export default function ReportsPage() {
           return d >= weekStart && d <= weekEnd
         }
         case "monthly":
-          return saleDate.startsWith("2026-06")
+          return saleDate.startsWith(monthStr)
         case "yearly":
-          return saleDate.startsWith("2026")
+          return saleDate.startsWith(yearStr)
         case "custom":
           if (!customStart && !customEnd) return true
           if (customStart && saleDate < customStart) return false

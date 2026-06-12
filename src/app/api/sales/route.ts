@@ -9,33 +9,41 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("sales")
-    .select("*, sale_items(*)")
+    .select("*, sale_items(*), profiles!sales_user_id_fkey(name), customers!sales_customer_id_fkey(name)")
     .order("created_at", { ascending: false })
 
   if (search) {
-    query = query.or(`invoice_number.ilike.%${search}%,customer_name.ilike.%${search}%`)
+    query = query.or(`invoice_number.ilike.%${search}%,customers.name.ilike.%${search}%`)
   }
 
   const { data, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  let filtered = data
+  const enriched = (data || []).map((s: any) => ({
+    ...s,
+    user_name: s.profiles?.name || "Unknown",
+    customer_name: s.customers?.name || null,
+    profiles: undefined,
+    customers: undefined,
+  }))
+
+  let filtered = enriched
 
   if (dateFilter && dateFilter !== "all") {
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
     if (dateFilter === "today") {
-      filtered = data.filter((s: any) => new Date(s.created_at) >= startOfDay)
+      filtered = enriched.filter((s: any) => new Date(s.created_at) >= startOfDay)
     } else if (dateFilter === "weekly") {
       const weekAgo = new Date(startOfDay)
       weekAgo.setDate(weekAgo.getDate() - 7)
-      filtered = data.filter((s: any) => new Date(s.created_at) >= weekAgo)
+      filtered = enriched.filter((s: any) => new Date(s.created_at) >= weekAgo)
     } else if (dateFilter === "monthly") {
       const monthAgo = new Date(startOfDay)
       monthAgo.setMonth(monthAgo.getMonth() - 1)
-      filtered = data.filter((s: any) => new Date(s.created_at) >= monthAgo)
+      filtered = enriched.filter((s: any) => new Date(s.created_at) >= monthAgo)
     }
   }
 
@@ -130,5 +138,26 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ...sale, items: saleItems }, { status: 201 })
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", session.user.id)
+    .single()
+
+  let customerName: string | null = null
+  if (body.customer_id) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("name")
+      .eq("id", body.customer_id)
+      .single()
+    if (cust) customerName = cust.name
+  }
+
+  return NextResponse.json({
+    ...sale,
+    items: saleItems,
+    user_name: profile?.name || "Unknown",
+    customer_name: customerName,
+  }, { status: 201 })
 }

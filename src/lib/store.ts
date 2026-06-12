@@ -27,6 +27,7 @@ interface POSState {
     name: string
     selling_price: number
     gst_percentage?: number
+    image_url?: string
   }) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
@@ -48,7 +49,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   customer: null,
 
   addToCart: (product) =>
-    set((state) => {
+    set((state) =>{
       const existing = state.cart.find((item) => item.product_id === product.id)
       let newCart: SaleItem[]
       if (existing) {
@@ -63,17 +64,18 @@ export const usePOSStore = create<POSState>((set, get) => ({
         )
       } else {
         const newItem: SaleItem = {
-          id: crypto.randomUUID(),
-          sale_id: "",
-          product_id: product.id,
-          product_name: product.name,
-          quantity: 1,
-          price: product.selling_price,
-          subtotal: product.selling_price,
-          gst_amount: product.gst_percentage
-            ? Math.round((product.selling_price * product.gst_percentage) / 100)
-            : 0,
-        }
+  id: uuidv4(),
+  sale_id: "",
+  product_id: product.id,
+  product_name: product.name,
+  quantity: 1,
+  price: product.selling_price,
+  subtotal: product.selling_price,
+  gst_amount: product.gst_percentage
+    ? Math.round((product.selling_price * product.gst_percentage) / 100)
+    : 0,
+  image_url: product.image_url,
+}
         newCart = [...state.cart, newItem]
       }
       saveCart(newCart)
