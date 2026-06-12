@@ -7,6 +7,8 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
 
+  const response = NextResponse.next()
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -15,20 +17,17 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
           })
-          Object.entries(headers).forEach(([key, value]) =>
-            request.headers.set(key, value),
-          )
         },
       },
     },
   )
 
-  const { data } = await supabase.auth.getSession()
-  const isAuthenticated = !!data.session
+  const { data: { session } } = await supabase.auth.getSession()
+  const isAuthenticated = !!session
 
   if (!isAuthenticated && !isPublic) {
     const url = request.nextUrl.clone()
@@ -41,28 +40,6 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/"
     return NextResponse.redirect(url)
   }
-
-  const response = NextResponse.next()
-
-  const supabaseResponse = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll() },
-          setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          )
-          Object.entries(headers).forEach(([key, value]) =>
-            response.headers.set(key, value),
-          )
-        },
-      },
-    },
-  )
-
-  await supabaseResponse.auth.getSession()
 
   return response
 }

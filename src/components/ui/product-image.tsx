@@ -30,7 +30,7 @@ export function ProductImage({
     return (
       <div
         className={cn(
-          "flex aspect-square items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 text-4xl font-bold text-blue-400",
+          "flex aspect-square items-center justify-center bg-linear-to-br from-blue-50 to-blue-100 text-4xl font-bold text-blue-400",
           fallbackClassName,
           className,
         )}
@@ -49,6 +49,7 @@ export function ProductImage({
         height={height}
         className={cn("h-full w-full object-cover", imageClassName)}
         onError={() => setError(true)}
+        unoptimized
       />
     </div>
   )

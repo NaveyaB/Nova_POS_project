@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import Image from "next/image"
+import { Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -235,11 +236,23 @@ export default function NewProductPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Product Image</label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-              />
+              <div className="flex items-center gap-3">
+                {imageFile && (
+                  <Image
+                    src={URL.createObjectURL(imageFile)}
+                    alt="Preview"
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-md object-cover"
+                    unoptimized
+                  />
+                )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

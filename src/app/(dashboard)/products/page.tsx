@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Plus, Edit, Trash2, Loader2, Package } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, Package, Upload } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,7 @@ export default function ProductsPage() {
     category_id: "",
     description: "",
   })
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -112,6 +113,17 @@ export default function ProductsPage() {
     if (!editingProduct) return
     setSaving(true)
     try {
+      let image_url = editingProduct.image_url || ""
+
+      if (editImageFile) {
+        const uploadData = new FormData()
+        uploadData.append("file", editImageFile)
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadData })
+        if (!uploadRes.ok) throw new Error("Failed to upload image")
+        const { url } = await uploadRes.json()
+        if (url) image_url = url
+      }
+
       const res = await fetch(`/api/products/${editingProduct.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -122,11 +134,13 @@ export default function ProductsPage() {
           stock_quantity: Number(editForm.stock_quantity),
           min_stock_level: Number(editForm.min_stock_level),
           gst_percentage: Number(editForm.gst_percentage),
+          image_url,
         }),
       })
       if (!res.ok) throw new Error("Failed to update product")
       toast.success("Product updated successfully")
       setEditingProduct(null)
+      setEditImageFile(null)
       fetchProducts()
     } catch (err: any) {
       toast.error(err.message)
@@ -240,6 +254,7 @@ export default function ProductsPage() {
                               width={40}
                               height={40}
                               className="h-10 w-10 rounded-md object-cover"
+                              unoptimized
                             />
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-sm font-semibold text-gray-600">
@@ -383,6 +398,26 @@ export default function ProductsPage() {
                 <Input
                   value={editForm.description}
                   onChange={(e) => updateEditField("description", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Product Image</label>
+              <div className="flex items-center gap-3">
+                {editingProduct?.image_url && (
+                  <Image
+                    src={editingProduct.image_url}
+                    alt="Current"
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-md object-cover"
+                    unoptimized
+                  />
+                )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditImageFile(e.target.files?.[0] || null)}
                 />
               </div>
             </div>

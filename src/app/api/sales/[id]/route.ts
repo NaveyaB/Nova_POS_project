@@ -14,9 +14,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({
     ...data,
+    items: (data as any)?.sale_items || [],
     user_name: (data as any)?.profiles?.name || "Unknown",
     customer_name: (data as any)?.customers?.name || null,
     profiles: undefined,
     customers: undefined,
+    sale_items: undefined,
   })
 }

@@ -230,7 +230,7 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              {selectedSale.items.length > 0 && (
+              {selectedSale?.items?.length > 0 && (
                 <div className="border-t pt-3">
                   <p className="mb-2 text-sm font-medium text-gray-500">Items</p>
                   <div className="space-y-1.5">

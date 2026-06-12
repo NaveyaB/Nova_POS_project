@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get("category")
   const search = searchParams.get("search")
+  const barcode = searchParams.get("barcode")
   const lowStock = searchParams.get("lowStock")
 
   let query = supabase
@@ -17,7 +18,9 @@ export async function GET(request: Request) {
     query = query.eq("categories.name", category)
   }
 
-  if (search) {
+  if (barcode) {
+    query = query.eq("barcode", barcode)
+  } else if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`)
   }
 

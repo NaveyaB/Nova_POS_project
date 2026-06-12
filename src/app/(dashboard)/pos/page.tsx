@@ -96,10 +96,10 @@ export default function POSPage() {
   const handleBarcodeSearch = useCallback(async (barcode: string) => {
     if (!barcode.trim()) return
     try {
-      const res = await fetch(`/api/products?search=${encodeURIComponent(barcode)}`)
+      const res = await fetch(`/api/products?barcode=${encodeURIComponent(barcode)}`)
       if (!res.ok) return
       const data: Product[] = await res.json()
-      const match = data.find((p) => p.barcode === barcode)
+      const match = data[0]
       if (match) {
         if (match.stock_quantity <= 0) {
           toast.error(`${match.name} is out of stock`)
@@ -334,7 +334,7 @@ export default function POSPage() {
         )}
       </div>
 
-      <div className="hidden w-96 border-l bg-white lg:flex lg:flex-col xl:w-[420px]">
+      <div className="hidden w-96 border-l bg-white lg:flex lg:flex-col xl:w-105">
         <CartPanel
           cart={cart}
           customer={customer}
@@ -491,6 +491,7 @@ function CartPanel({
                       width={40}
                       height={40}
                       className="h-full w-full object-cover"
+                      unoptimized
                     />
                   </div>
                 ) : (

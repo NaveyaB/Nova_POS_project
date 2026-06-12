@@ -6,48 +6,56 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const dateFilter = searchParams.get("dateFilter")
   const search = searchParams.get("search")
+  const limit = Math.min(Number(searchParams.get("limit")) || 50, 100)
+  const offset = Number(searchParams.get("offset")) || 0
 
   let query = supabase
     .from("sales")
     .select("*, sale_items(*), profiles!sales_user_id_fkey(name), customers!sales_customer_id_fkey(name)")
     .order("created_at", { ascending: false })
-
-  if (search) {
-    query = query.or(`invoice_number.ilike.%${search}%,customers.name.ilike.%${search}%`)
-  }
-
-  const { data, error } = await query
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const enriched = (data || []).map((s: any) => ({
-    ...s,
-    user_name: s.profiles?.name || "Unknown",
-    customer_name: s.customers?.name || null,
-    profiles: undefined,
-    customers: undefined,
-  }))
-
-  let filtered = enriched
+    .range(offset, offset + limit - 1)
 
   if (dateFilter && dateFilter !== "all") {
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
     if (dateFilter === "today") {
-      filtered = enriched.filter((s: any) => new Date(s.created_at) >= startOfDay)
+      query = query.gte("created_at", startOfDay.toISOString())
     } else if (dateFilter === "weekly") {
       const weekAgo = new Date(startOfDay)
       weekAgo.setDate(weekAgo.getDate() - 7)
-      filtered = enriched.filter((s: any) => new Date(s.created_at) >= weekAgo)
+      query = query.gte("created_at", weekAgo.toISOString())
     } else if (dateFilter === "monthly") {
       const monthAgo = new Date(startOfDay)
       monthAgo.setMonth(monthAgo.getMonth() - 1)
-      filtered = enriched.filter((s: any) => new Date(s.created_at) >= monthAgo)
+      query = query.gte("created_at", monthAgo.toISOString())
     }
   }
 
-  return NextResponse.json(filtered)
+  let { data, error } = await query
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  let enriched = (data || []).map((s: any) => ({
+    ...s,
+    items: s.sale_items || [],
+    user_name: s.profiles?.name || "Unknown",
+    customer_name: s.customers?.name || null,
+    profiles: undefined,
+    customers: undefined,
+    sale_items: undefined,
+  }))
+
+  if (search) {
+    const q = search.toLowerCase()
+    enriched = enriched.filter(
+      (s: any) =>
+        s.invoice_number?.toLowerCase().includes(q) ||
+        s.customer_name?.toLowerCase().includes(q),
+    )
+  }
+
+  return NextResponse.json(enriched)
 }
 
 export async function POST(request: Request) {

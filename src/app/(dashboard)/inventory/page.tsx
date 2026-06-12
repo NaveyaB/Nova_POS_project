@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Package, Plus, Minus, AlertTriangle, Loader2 } from "lucide-react"
-import type { Product, StockMovement } from "@/types"
+import { Package, Plus, Minus, AlertTriangle, Loader2, Edit, Trash2 } from "lucide-react"
+import type { Product } from "@/types"
 
 type Tab = "overview" | "stock-in" | "stock-out" | "alerts"
 
@@ -134,8 +135,9 @@ export default function InventoryPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <Package className="h-4 w-4" />
+                            <UpdateStockButton product={product} onUpdate={fetchProducts} />
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>
                         </TableCell>
@@ -149,8 +151,8 @@ export default function InventoryPage() {
         </Card>
       )}
 
-      {activeTab === "stock-in" && <StockForm type="in" products={products} />}
-      {activeTab === "stock-out" && <StockForm type="out" products={products} />}
+      {activeTab === "stock-in" && <StockForm type="in" products={products} onUpdate={fetchProducts} />}
+      {activeTab === "stock-out" && <StockForm type="out" products={products} onUpdate={fetchProducts} />}
 
       {activeTab === "alerts" && (
         <div className="space-y-6">
@@ -217,9 +219,126 @@ export default function InventoryPage() {
       )}
     </div>
   )
+
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to delete this product?")) return
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete product")
+      toast.success("Product deleted")
+      fetchProducts()
+    } catch {
+      toast.error("Failed to delete product")
+    }
+  }
 }
 
-function StockForm({ type, products }: { type: "in" | "out"; products: Product[] }) {
+function UpdateStockButton({ product, onUpdate }: { product: Product; onUpdate: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [type, setType] = useState<"in" | "out">("in")
+  const [quantity, setQuantity] = useState("")
+  const [reason, setReason] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quantity || !reason) {
+      toast.error("Please fill all fields")
+      return
+    }
+    const qty = Number(quantity)
+    if (qty <= 0) {
+      toast.error("Quantity must be positive")
+      return
+    }
+    if (type === "out" && qty > product.stock_quantity) {
+      toast.error("Insufficient stock")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/stock-movements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: product.id, type, quantity: qty, reason }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to update stock")
+      }
+      toast.success("Stock updated successfully")
+      setOpen(false)
+      setQuantity("")
+      setReason("")
+      onUpdate()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Package className="h-4 w-4 mr-1" />
+        Stock
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Stock - {product.name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setType("in")}
+                className={`flex-1 rounded-lg border p-2 text-sm font-medium ${
+                  type === "in" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500"
+                }`}
+              >
+                <Plus className="h-4 w-4 mx-auto mb-1" />
+                Stock In
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("out")}
+                className={`flex-1 rounded-lg border p-2 text-sm font-medium ${
+                  type === "out" ? "border-red-500 bg-red-50 text-red-700" : "border-gray-200 text-gray-500"
+                }`}
+              >
+                <Minus className="h-4 w-4 mx-auto mb-1" />
+                Stock Out
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">Current Stock: {product.stock_quantity} {product.unit}</p>
+            <Input
+              type="number"
+              min="1"
+              placeholder="Quantity"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              required
+            />
+            <Input
+              placeholder="Reason (e.g. restock, damaged)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+            />
+            <Button type="submit" disabled={submitting} variant={type === "in" ? "default" : "destructive"} className="w-full">
+              {submitting ? "Updating..." : `${type === "in" ? "Add" : "Remove"} Stock`}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function StockForm({ type, products, onUpdate }: { type: "in" | "out"; products: Product[]; onUpdate: () => void }) {
   const [productId, setProductId] = useState("")
   const [quantity, setQuantity] = useState("")
   const [reason, setReason] = useState("")
@@ -275,6 +394,7 @@ function StockForm({ type, products }: { type: "in" | "out"; products: Product[]
       setProductId("")
       setQuantity("")
       setReason("")
+      onUpdate()
     } catch (err: any) {
       setMessage(err.message)
       toast.error(err.message)

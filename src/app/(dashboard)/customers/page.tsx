@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SearchInput } from "@/components/ui/search-input"
 import { toast } from "sonner"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { Users, Award, UserPlus, Pencil, ShoppingBag, Plus } from "lucide-react"
+import { Users, Award, UserPlus, Pencil, ShoppingBag, Plus, Trash2 } from "lucide-react"
 import type { Customer, Sale } from "@/types"
 
 export default function CustomersPage() {
@@ -85,6 +85,18 @@ export default function CustomersPage() {
     if (!historyCustomer) return []
     return sales.filter((s) => s.customer_id === historyCustomer.id)
   }, [historyCustomer, sales])
+
+  const handleDeleteCustomer = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this customer?")) return
+    try {
+      const res = await fetch(`/api/customers/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete customer")
+      toast.success("Customer deleted")
+      await fetchCustomers()
+    } catch {
+      toast.error("Failed to delete customer")
+    }
+  }
 
   const openAddDialog = () => {
     setEditingCustomer(null)
@@ -220,6 +232,9 @@ export default function CustomersPage() {
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => openHistory(customer)}>
                           <ShoppingBag className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer.id)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
                     </TableCell>
