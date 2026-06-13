@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import type { DashboardStats } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Package, AlertTriangle, Users, ShoppingCart, TrendingUp } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, fetchWithTimeout } from "@/lib/utils"
 import {
   BarChart,
   Bar,
@@ -63,10 +63,12 @@ export default function DashboardPage() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    fetch("/api/dashboard")
+    const controller = new AbortController()
+    fetchWithTimeout("/api/dashboard", { signal: controller.signal, timeout: 10000 })
       .then((r) => r.json())
       .then((data) => { setStats(data); setLoading(false) })
       .catch(() => { setError("Failed to load dashboard"); setLoading(false) })
+    return () => controller.abort()
   }, [])
 
   if (loading) {

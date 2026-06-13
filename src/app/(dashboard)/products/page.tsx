@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Plus, Edit, Trash2, Loader2, Package, Upload } from "lucide-react"
@@ -12,8 +12,10 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, fetchWithTimeout } from "@/lib/utils"
 import { toast } from "sonner"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const ITEMS_PER_PAGE = 10
 
@@ -30,7 +32,6 @@ export default function ProductsPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     sku: "",
-    barcode: "",
     brand: "",
     purchase_price: "",
     selling_price: "",
@@ -44,14 +45,22 @@ export default function ProductsPage() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const abortRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
-    fetch("/api/categories")
+    const controller = new AbortController()
+    fetchWithTimeout("/api/categories", { signal: controller.signal, timeout: 5000 })
       .then((res) => res.json())
       .then((data) => setCategories(data))
       .catch(() => {})
+    return () => controller.abort()
   }, [])
 
   const fetchProducts = async () => {
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
@@ -59,14 +68,15 @@ export default function ProductsPage() {
       if (searchQuery) params.set("search", searchQuery)
       if (categoryFilter) params.set("category", categoryFilter)
 
-      const res = await fetch(`/api/products?${params.toString()}`)
+      const res = await fetchWithTimeout(`/api/products?${params.toString()}`, { signal: controller.signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to load products")
       const data = await res.json()
-      setProducts(data)
+      if (!controller.signal.aborted) setProducts(data)
     } catch (err: any) {
+      if (controller.signal.aborted) return
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }
 
@@ -74,7 +84,10 @@ export default function ProductsPage() {
     const timer = setTimeout(() => {
       fetchProducts()
     }, 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      if (abortRef.current) abortRef.current.abort()
+    }
   }, [searchQuery, categoryFilter])
 
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE)
@@ -91,7 +104,6 @@ export default function ProductsPage() {
     setEditForm({
       name: product.name,
       sku: product.sku,
-      barcode: product.barcode || "",
       brand: product.brand || "",
       purchase_price: String(product.purchase_price),
       selling_price: String(product.selling_price),
@@ -162,13 +174,16 @@ export default function ProductsPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-        <Button onClick={() => router.push("/products/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
+        <DemoGuard>
+          <Button onClick={() => router.push("/products/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Product
+          </Button>
+        </DemoGuard>
       </div>
 
       <Card>
@@ -213,10 +228,12 @@ export default function ProductsPage() {
               <Package className="mb-3 h-12 w-12" />
               <p className="text-sm font-medium text-gray-900">No products found</p>
               <p className="mt-1 text-xs">Add your first product to get started</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push("/products/new")}>
-                <Plus className="mr-1 h-4 w-4" />
-                Add Product
-              </Button>
+              <DemoGuard>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push("/products/new")}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Product
+                </Button>
+              </DemoGuard>
             </div>
           ) : (
             <>
@@ -226,7 +243,6 @@ export default function ProductsPage() {
                     <TableHead>Image</TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead>Barcode</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Price</TableHead>
                     <TableHead>Stock</TableHead>
@@ -237,7 +253,7 @@ export default function ProductsPage() {
                 <TableBody>
                   {paginated.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-16 text-gray-400">
+                      <TableCell colSpan={8} className="text-center py-16 text-gray-400">
                         <Package className="mx-auto mb-2 h-8 w-8" />
                         <p className="text-sm">No products match your search</p>
                       </TableCell>
@@ -264,7 +280,6 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell className="text-gray-500">{product.sku}</TableCell>
-                        <TableCell className="text-gray-500">{product.barcode || "-"}</TableCell>
                         <TableCell>{product.category_name || "-"}</TableCell>
                         <TableCell>{formatCurrency(product.selling_price)}</TableCell>
                         <TableCell>{product.stock_quantity}</TableCell>
@@ -273,12 +288,16 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+                            <DemoGuard>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DemoGuard>
+                            <DemoGuard>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </DemoGuard>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -332,10 +351,6 @@ export default function ProductsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">SKU</label>
                 <Input required value={editForm.sku} onChange={(e) => updateEditField("sku", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Barcode</label>
-                <Input value={editForm.barcode} onChange={(e) => updateEditField("barcode", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Category</label>
@@ -434,5 +449,6 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }

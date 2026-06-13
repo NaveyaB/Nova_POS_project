@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SearchInput } from "@/components/ui/search-input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { formatCurrency, formatDateTime } from "@/lib/utils"
+import { formatCurrency, formatDateTime, fetchWithTimeout } from "@/lib/utils"
 import { Eye, Printer, RotateCcw, X, Download, Loader2, FileText } from "lucide-react"
 import { Receipt, ReceiptActions } from "@/components/invoice/receipt"
 import type { Sale } from "@/types"
@@ -42,26 +42,34 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const abortRef = useRef<AbortController | null>(null)
+
   const fetchSales = async () => {
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
       if (search) params.set("search", search)
       if (dateFilter !== "all") params.set("dateFilter", dateFilter)
-      const res = await fetch(`/api/sales${params.toString() ? `?${params.toString()}` : ""}`)
+      const res = await fetchWithTimeout(`/api/sales${params.toString() ? `?${params.toString()}` : ""}`, { signal: controller.signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to fetch sales")
       const data = await res.json()
-      setSales(data)
+      if (!controller.signal.aborted) setSales(data)
     } catch (err) {
+      if (controller.signal.aborted) return
       setError(err instanceof Error ? err.message : "Failed to load sales")
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchSales()
+    return () => { if (abortRef.current) abortRef.current.abort() }
   }, [search, dateFilter])
 
   const totalSales = sales.length

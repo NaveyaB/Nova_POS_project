@@ -6,39 +6,57 @@ import { useAuthStore } from "./store"
 import { createSupabaseBrowserClient } from "./supabase-client"
 
 const publicRoutes = ["/login"]
+const AUTH_TIMEOUT = 5000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, setUser, logout } = useAuthStore()
+  const { user, setUser, setIsDemo, logout } = useAuthStore()
   const [isLoading, setIsLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
+    let cancelled = false
     const supabase = createSupabaseBrowserClient()
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-        if (profile) {
-          setUser({
-            id: (profile as any).id,
-            email: (profile as any).email,
-            name: (profile as any).name,
-            role: (profile as any).role,
-            phone: (profile as any).phone || undefined,
-            created_at: (profile as any).created_at,
-          })
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) { setIsLoading(false); setInitialized(true) }
+    }, AUTH_TIMEOUT)
+
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (cancelled) return
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
+            .single()
+          if (!cancelled && profile) {
+            const isDemo = (profile as any).role === "demo"
+            setUser({
+              id: (profile as any).id,
+              email: (profile as any).email,
+              name: (profile as any).name,
+              role: isDemo ? "admin" : (profile as any).role,
+              phone: (profile as any).phone || undefined,
+              created_at: (profile as any).created_at,
+            })
+            setIsDemo(isDemo)
+          }
         }
-      }
-      setIsLoading(false)
-    })
+        if (!cancelled) { setIsLoading(false); setInitialized(true) }
+        clearTimeout(timeoutId)
+      })
+      .catch(() => {
+        if (!cancelled) { setIsLoading(false); setInitialized(true) }
+        clearTimeout(timeoutId)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return
       if (event === "SIGNED_OUT") {
+        setIsDemo(false)
         logout()
         router.push("/login")
       } else if (event === "SIGNED_IN" && session) {
@@ -47,29 +65,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select("*")
           .eq("id", session.user.id)
           .single()
-        if (profile) {
+        if (!cancelled && profile) {
+          const isDemo = (profile as any).role === "demo"
           setUser({
             id: (profile as any).id,
             email: (profile as any).email,
             name: (profile as any).name,
-            role: (profile as any).role,
+            role: isDemo ? "admin" : (profile as any).role,
             phone: (profile as any).phone || undefined,
             created_at: (profile as any).created_at,
           })
+          setIsDemo(isDemo)
         }
       }
     })
 
-    return () => subscription.unsubscribe()
-  }, [setUser, logout, router])
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
+  }, [setUser, setIsDemo, logout, router])
 
   useEffect(() => {
-    if (isLoading) return
+    if (!initialized) return
     const isPublic = publicRoutes.some((r) => pathname.startsWith(r))
     if (!user && !isPublic) {
-      router.push("/login")
+      router.replace("/login")
     }
-  }, [user, isLoading, pathname, router])
+  }, [user, initialized, pathname, router])
 
   if (isLoading) {
     return (

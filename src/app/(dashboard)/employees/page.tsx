@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { fetchWithTimeout } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,22 +61,25 @@ export default function EmployeesPage() {
   const [form, setForm] = useState<EmployeeFormData>(emptyForm)
   const [saving, setSaving] = useState(false)
 
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true)
-      const res = await fetch("/api/employees")
+      const res = await fetchWithTimeout("/api/employees", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to load employees")
       const data = await res.json()
-      setEmployees(Array.isArray(data) ? data : data.data ?? [])
+      if (!signal?.aborted) setEmployees(Array.isArray(data) ? data : data.data ?? [])
     } catch {
+      if (signal?.aborted) return
       toast.error("Failed to load employees")
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchEmployees()
+    const controller = new AbortController()
+    fetchEmployees(controller.signal)
+    return () => controller.abort()
   }, [fetchEmployees])
 
   const filtered = useMemo(() =>

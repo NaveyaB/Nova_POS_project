@@ -4,13 +4,9 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ShoppingCart, Eye, EyeOff } from "lucide-react"
-
-const quickUsers = [
-  { email: "admin@smartpos.com", label: "Naveya (Admin)", role: "admin" },
-  { email: "manager@smartpos.com", label: "Karthik (Manager)", role: "manager" },
-  { email: "cashier1@smartpos.com", label: "Meena (Cashier)", role: "cashier" },
-]
+import { ShoppingCart, Eye, EyeOff, Loader2, EyeOffIcon } from "lucide-react"
+import { createSupabaseBrowserClient } from "@/lib/supabase-client"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,6 +14,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -41,6 +38,11 @@ export default function LoginPage() {
         return
       }
 
+      if (data.session) {
+        const supabase = createSupabaseBrowserClient()
+        await supabase.auth.setSession(data.session)
+      }
+
       router.push("/")
       router.refresh()
     } catch {
@@ -50,9 +52,31 @@ export default function LoginPage() {
     }
   }
 
-  const fillCredentials = (e: string) => {
-    setEmail(e)
-    setPassword("password")
+  const handleDemoAccess = async () => {
+    setDemoLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/auth/demo", { method: "POST" })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Demo access unavailable")
+        return
+      }
+
+      if (data.session) {
+        const supabase = createSupabaseBrowserClient()
+        await supabase.auth.setSession(data.session)
+      }
+
+      toast.success("Exploring in demo mode")
+      router.push("/")
+      router.refresh()
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setDemoLoading(false)
+    }
   }
 
   return (
@@ -109,18 +133,20 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 border-t pt-6">
-            <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Password: password)</p>
-            <div className="flex gap-2">
-              {quickUsers.map((u) => (
-                <button
-                  key={u.role}
-                  onClick={() => fillCredentials(u.email)}
-                  className="flex-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                >
-                  {u.label}
-                </button>
-              ))}
-            </div>
+            <p className="text-xs text-gray-500 mb-3 text-center">Or explore without an account</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleDemoAccess}
+              disabled={demoLoading}
+            >
+              {demoLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Loading demo...</>
+              ) : (
+                <><EyeOff className="h-4 w-4" /> Demo Access (Read-Only)</>
+              )}
+            </Button>
           </div>
         </div>
       </div>

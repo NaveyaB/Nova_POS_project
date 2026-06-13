@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
 import { toast } from "sonner"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, fetchWithTimeout } from "@/lib/utils"
 import { Users, Award, UserPlus, Pencil, ShoppingBag, Plus, Trash2 } from "lucide-react"
 import type { Customer, Sale } from "@/types"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -26,34 +28,40 @@ export default function CustomersPage() {
   const [formData, setFormData] = useState({ name: "", phone: "", email: "", address: "" })
   const [saving, setSaving] = useState(false)
 
-  const fetchCustomers = useCallback(async () => {
+  const abortRef = useRef<AbortController | null>(null)
+
+  const fetchCustomers = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true)
-      const res = await fetch("/api/customers")
+      const res = await fetchWithTimeout("/api/customers", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to load customers")
       const data = await res.json()
-      setCustomers(Array.isArray(data) ? data : data.data ?? [])
+      if (!signal?.aborted) setCustomers(Array.isArray(data) ? data : data.data ?? [])
     } catch {
+      if (signal?.aborted) return
       toast.error("Failed to load customers")
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
-  const fetchSales = useCallback(async () => {
+  const fetchSales = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/sales")
+      const res = await fetchWithTimeout("/api/sales", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to load sales")
       const data = await res.json()
-      setSales(Array.isArray(data) ? data : data.data ?? [])
+      if (!signal?.aborted) setSales(Array.isArray(data) ? data : data.data ?? [])
     } catch {
       // non-critical
     }
   }, [])
 
   useEffect(() => {
-    fetchCustomers()
-    fetchSales()
+    const controller = new AbortController()
+    abortRef.current = controller
+    fetchCustomers(controller.signal)
+    fetchSales(controller.signal)
+    return () => controller.abort()
   }, [fetchCustomers, fetchSales])
 
   const filteredCustomers = useMemo(() => {
@@ -150,6 +158,7 @@ export default function CustomersPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
 
@@ -191,10 +200,12 @@ export default function CustomersPage() {
 
       <div className="flex items-center justify-between gap-4">
         <SearchInput placeholder="Search customers..." value={search} onChange={setSearch} />
-        <Button onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Customer
-        </Button>
+        <DemoGuard>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Customer
+          </Button>
+        </DemoGuard>
       </div>
 
       <Card>
@@ -227,15 +238,19 @@ export default function CustomersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(customer)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <DemoGuard>
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(customer)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </DemoGuard>
                         <Button variant="ghost" size="sm" onClick={() => openHistory(customer)}>
                           <ShoppingBag className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer.id)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <DemoGuard>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </DemoGuard>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -340,5 +355,6 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }

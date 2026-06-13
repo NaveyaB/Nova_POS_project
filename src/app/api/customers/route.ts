@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { checkDemoAccess } from "@/lib/demo-guard"
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -13,6 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const guard = await checkDemoAccess(); if (guard) return guard
   const supabase = await createSupabaseServerClient()
   const body = await request.json()
 

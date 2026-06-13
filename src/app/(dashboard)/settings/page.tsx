@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Store, DollarSign, Sun, Moon, Save, Database, Loader2 } from "lucide-react"
 import type { StoreSettings } from "@/types"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const defaultSettings: StoreSettings = {
   store_name: "SmartPOS Store",
@@ -25,13 +27,88 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings)
   const [theme, setTheme] = useState<"light" | "dark">("light")
   const [paymentMethod, setPaymentMethod] = useState("cash")
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savingPos, setSavingPos] = useState(false)
 
-  function handleStoreSave() {
-    toast.success("Store settings saved successfully")
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pos_theme")
+      if (saved === "dark") {
+        setTheme("dark")
+        document.documentElement.classList.add("dark")
+      }
+    } catch {}
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings")
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.store_name) {
+          setSettings({
+            store_name: data.store_name,
+            logo_url: data.logo_url || "",
+            address: data.address || "",
+            gst_number: data.gst_number || "",
+            phone: data.phone || "",
+            email: data.email || "",
+            currency: data.currency || "INR",
+            tax_rate: data.tax_rate || 18,
+            receipt_footer: data.receipt_footer || "",
+          })
+          if (data.default_payment_method) {
+            setPaymentMethod(data.default_payment_method)
+          }
+        }
+      }
+    } catch {} finally {
+      setLoading(false)
+    }
   }
 
-  function handlePosSave() {
-    toast.success("POS settings saved successfully")
+  const handleStoreSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...settings, default_payment_method: paymentMethod }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error || "Failed to save settings")
+        return
+      }
+      toast.success("Store settings saved successfully")
+    } catch {
+      toast.error("Network error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handlePosSave = async () => {
+    setSavingPos(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...settings, default_payment_method: paymentMethod }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error || "Failed to save settings")
+        return
+      }
+      toast.success("POS settings saved successfully")
+    } catch {
+      toast.error("Network error")
+    } finally {
+      setSavingPos(false)
+    }
   }
 
   const applyTheme = (t: "light" | "dark") => {
@@ -47,7 +124,16 @@ export default function SettingsPage() {
     } catch {}
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
@@ -133,10 +219,12 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleStoreSave}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Store Settings
-            </Button>
+            <DemoGuard>
+              <Button onClick={handleStoreSave} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Store Settings
+              </Button>
+            </DemoGuard>
           </div>
         </CardContent>
       </Card>
@@ -213,10 +301,12 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={handlePosSave}>
-              <Save className="mr-2 h-4 w-4" />
-              Save POS Settings
-            </Button>
+            <DemoGuard>
+              <Button onClick={handlePosSave} disabled={savingPos}>
+                {savingPos ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save POS Settings
+              </Button>
+            </DemoGuard>
           </div>
         </CardContent>
       </Card>
@@ -273,6 +363,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   )
 }
 

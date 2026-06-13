@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, fetchWithTimeout } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 import {
   BarChart,
@@ -41,13 +41,14 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const controller = new AbortController()
     const fetchData = async () => {
       setLoading(true)
       try {
         const [salesRes, productsRes, customersRes] = await Promise.all([
-          fetch("/api/sales"),
-          fetch("/api/products"),
-          fetch("/api/customers"),
+          fetchWithTimeout("/api/sales", { signal: controller.signal, timeout: 10000 }),
+          fetchWithTimeout("/api/products", { signal: controller.signal, timeout: 10000 }),
+          fetchWithTimeout("/api/customers", { signal: controller.signal, timeout: 10000 }),
         ])
         if (!salesRes.ok || !productsRes.ok || !customersRes.ok) {
           throw new Error("Failed to fetch report data")
@@ -57,16 +58,20 @@ export default function ReportsPage() {
           productsRes.json(),
           customersRes.json(),
         ])
-        setSales(salesData)
-        setProducts(productsData)
-        setCustomers(customersData)
+        if (!controller.signal.aborted) {
+          setSales(salesData)
+          setProducts(productsData)
+          setCustomers(customersData)
+        }
       } catch (err) {
+        if (controller.signal.aborted) return
         console.error(err)
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
     fetchData()
+    return () => controller.abort()
   }, [])
 
   const filteredSales = useMemo(() => {

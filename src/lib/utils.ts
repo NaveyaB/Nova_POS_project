@@ -29,3 +29,11 @@ export function formatDateTime(date: string | Date): string {
     minute: "2-digit",
   }).format(new Date(date))
 }
+
+export function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}): Promise<Response> {
+  const { timeout = 10000, ...fetchOptions } = options
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+  return fetch(url, { ...fetchOptions, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId))
+}

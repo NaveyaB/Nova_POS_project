@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import { Plus, Minus, Trash2, Printer, Mail, CreditCard, Smartphone, Banknote, QrCode, User, Package, Loader2, ShoppingCart, Scan, X } from "lucide-react"
+import { Plus, Minus, Trash2, Printer, Mail, CreditCard, Smartphone, Banknote, QrCode, User, Package, Loader2, ShoppingCart, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -10,9 +10,9 @@ import { Select } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { usePOSStore } from "@/lib/store"
+import { usePOSStore, useAuthStore } from "@/lib/store"
 import Image from "next/image"
-import { formatCurrency, formatDateTime } from "@/lib/utils"
+import { formatCurrency, formatDateTime, fetchWithTimeout } from "@/lib/utils"
 import { ProductImage } from "@/components/ui/product-image"
 import { Receipt, ReceiptActions } from "@/components/invoice/receipt"
 import type { Sale, SaleItem, Product, Customer } from "@/types"
@@ -41,39 +41,41 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showMobileCart, setShowMobileCart] = useState(false)
-  const [barcodeQuery, setBarcodeQuery] = useState("")
-  const barcodeInputRef = useRef<HTMLInputElement>(null)
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/products")
+      const res = await fetchWithTimeout("/api/products", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to fetch products")
       const data = await res.json()
       setProducts(data)
     } catch {
+      if ((signal as any)?.aborted) return
       toast.error("Failed to load products")
     }
   }, [])
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/customers")
+      const res = await fetchWithTimeout("/api/customers", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to fetch customers")
       const data = await res.json()
       setCustomers(data)
     } catch {
+      if ((signal as any)?.aborted) return
       toast.error("Failed to load customers")
     }
   }, [])
 
   useEffect(() => {
     restoreCart()
+    const abortController = new AbortController()
     const load = async () => {
       setLoading(true)
-      await Promise.all([fetchProducts(), fetchCustomers()])
+      await Promise.all([fetchProducts(abortController.signal), fetchCustomers(abortController.signal)])
       setLoading(false)
     }
     load()
+    return () => abortController.abort()
   }, [fetchProducts, fetchCustomers, restoreCart])
 
   const filteredProducts = useMemo(() => {
@@ -92,36 +94,6 @@ export default function POSPage() {
 
   const tax = useMemo(() => subtotal * 0.05, [subtotal])
   const grandTotal = useMemo(() => subtotal - discount + tax, [subtotal, discount, tax])
-
-  const handleBarcodeSearch = useCallback(async (barcode: string) => {
-    if (!barcode.trim()) return
-    try {
-      const res = await fetch(`/api/products?barcode=${encodeURIComponent(barcode)}`)
-      if (!res.ok) return
-      const data: Product[] = await res.json()
-      const match = data[0]
-      if (match) {
-        if (match.stock_quantity <= 0) {
-          toast.error(`${match.name} is out of stock`)
-          return
-        }
-        addToCart(match)
-        toast.success(`${match.name} added to cart`)
-        setBarcodeQuery("")
-      } else {
-        toast.error("Product not found with this barcode")
-      }
-    } catch {
-      toast.error("Failed to search barcode")
-    }
-  }, [addToCart])
-
-  useEffect(() => {
-    if (barcodeQuery.length >= 4) {
-      const timer = setTimeout(() => handleBarcodeSearch(barcodeQuery), 400)
-      return () => clearTimeout(timer)
-    }
-  }, [barcodeQuery, handleBarcodeSearch])
 
   const handleCustomerChange = (id: string) => {
     setCustomerId(id)
@@ -163,8 +135,9 @@ export default function POSPage() {
     setSubmitting(true)
 
     try {
-      const res = await fetch("/api/sales", {
+      const res = await fetchWithTimeout("/api/sales", {
         method: "POST",
+        timeout: 15000,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer_id: customer?.id ?? null,
@@ -220,34 +193,6 @@ export default function POSPage() {
                 value={searchQuery}
                 onChange={setSearchQuery}
               />
-            </div>
-            <button
-              onClick={() => barcodeInputRef.current?.focus()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50"
-              title="Scan barcode"
-            >
-              <Scan className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Scan className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                ref={barcodeInputRef}
-                type="text"
-                placeholder="Scan or type barcode..."
-                value={barcodeQuery}
-                onChange={(e) => setBarcodeQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 pl-9 pr-8 text-sm focus:border-blue-500 focus:outline-none"
-              />
-              {barcodeQuery && (
-                <button
-                  onClick={() => setBarcodeQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -453,6 +398,7 @@ function CartPanel({
   selectedPayment: string; setSelectedPayment: (p: "cash" | "upi" | "card" | "net_banking") => void;
   submitting: boolean; handleCompleteSale: () => void; setShowPreview: (v: boolean) => void;
 }) {
+  const isDemo = useAuthStore((s) => s.isDemo)
   return (
     <>
       <div className="border-b p-4">
@@ -587,14 +533,20 @@ function CartPanel({
           </div>
         </div>
 
+        {isDemo && (
+          <div className="mt-2 rounded-md bg-yellow-50 border border-yellow-200 p-2 text-center text-xs text-yellow-700">
+            Demo mode: Sales are disabled
+          </div>
+        )}
+
         <Button
           variant="success"
           size="lg"
           className="mt-4 w-full text-base font-semibold"
           onClick={handleCompleteSale}
-          disabled={submitting}
+          disabled={submitting || isDemo}
         >
-          {submitting ? "Processing..." : `Complete Sale (${formatCurrency(grandTotal)})`}
+          {submitting ? "Processing..." : isDemo ? "Demo Mode" : `Complete Sale (${formatCurrency(grandTotal)})`}
         </Button>
 
         <div className="mt-3 flex gap-2">

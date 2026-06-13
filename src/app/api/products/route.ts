@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { checkDemoAccess } from "@/lib/demo-guard"
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient()
   const { searchParams } = new URL(request.url)
   const category = searchParams.get("category")
   const search = searchParams.get("search")
-  const barcode = searchParams.get("barcode")
   const lowStock = searchParams.get("lowStock")
 
   let query = supabase
@@ -18,9 +18,7 @@ export async function GET(request: Request) {
     query = query.eq("categories.name", category)
   }
 
-  if (barcode) {
-    query = query.eq("barcode", barcode)
-  } else if (search) {
+  if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`)
   }
 
@@ -42,6 +40,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const guard = await checkDemoAccess()
+  if (guard) return guard
+
   const supabase = await createSupabaseServerClient()
   const body = await request.json()
 
@@ -55,7 +56,6 @@ export async function POST(request: Request) {
       name: body.name,
       description: body.description || null,
       sku: body.sku,
-      barcode: body.barcode || null,
       category_id: body.category_id || null,
       brand: body.brand || null,
       purchase_price: body.purchase_price || 0,

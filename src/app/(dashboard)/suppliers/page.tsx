@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
 import { toast } from "sonner"
+import { fetchWithTimeout } from "@/lib/utils"
 import { Building2, FileCheck, Pencil, Trash2, Plus } from "lucide-react"
 import type { Supplier } from "@/types"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -22,22 +25,25 @@ export default function SuppliersPage() {
   const [formData, setFormData] = useState({ name: "", phone: "", email: "", address: "", gst_number: "" })
   const [saving, setSaving] = useState(false)
 
-  const fetchSuppliers = useCallback(async () => {
+  const fetchSuppliers = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true)
-      const res = await fetch("/api/suppliers")
+      const res = await fetchWithTimeout("/api/suppliers", { signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to load suppliers")
       const data = await res.json()
-      setSuppliers(Array.isArray(data) ? data : data.data ?? [])
+      if (!signal?.aborted) setSuppliers(Array.isArray(data) ? data : data.data ?? [])
     } catch {
+      if (signal?.aborted) return
       toast.error("Failed to load suppliers")
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchSuppliers()
+    const controller = new AbortController()
+    fetchSuppliers(controller.signal)
+    return () => controller.abort()
   }, [fetchSuppliers])
 
   const filteredSuppliers = useMemo(() => {
@@ -121,6 +127,7 @@ export default function SuppliersPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
 
@@ -151,10 +158,12 @@ export default function SuppliersPage() {
 
       <div className="flex items-center justify-between gap-4">
         <SearchInput placeholder="Search suppliers..." value={search} onChange={setSearch} />
-        <Button onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Supplier
-        </Button>
+        <DemoGuard>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Supplier
+          </Button>
+        </DemoGuard>
       </div>
 
       <Card>
@@ -191,12 +200,16 @@ export default function SuppliersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(supplier)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <DemoGuard>
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(supplier)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </DemoGuard>
+                        <DemoGuard>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </DemoGuard>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -273,5 +286,6 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }

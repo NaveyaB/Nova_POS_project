@@ -41,7 +41,7 @@ export function Sidebar() {
   )
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-gray-200 bg-white">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-gray-200 bg-white max-lg:hidden">
       <div className="flex h-16 items-center gap-2 border-b px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
           <ShoppingCart className="h-4 w-4 text-white" />

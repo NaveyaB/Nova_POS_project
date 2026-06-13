@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { checkDemoAccess } from "@/lib/demo-guard"
 
 const CATEGORIES = [
   { id: "a0000000-0000-0000-0000-000000000001", name: "Groceries", description: "Daily grocery and food items" },
@@ -134,6 +135,7 @@ const SALES_DATA = [
 ]
 
 export async function POST() {
+  const guard = await checkDemoAccess(); if (guard) return guard
   const supabase = await createSupabaseServerClient()
 
   const { data: { user } } = await supabase.auth.getUser()

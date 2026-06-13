@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchInput } from "@/components/ui/search-input"
 import { toast } from "sonner"
-import { formatDate } from "@/lib/utils"
+import { formatDate, fetchWithTimeout } from "@/lib/utils"
 import type { Category, Product } from "@/types"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -32,29 +34,35 @@ export default function CategoriesPage() {
     return map
   }, [products])
 
-  const fetchCategories = useCallback(async () => {
+  const abortRef = useRef<AbortController | null>(null)
+
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true)
       const [catRes, prodRes] = await Promise.all([
-        fetch("/api/categories"),
-        fetch("/api/products"),
+        fetchWithTimeout("/api/categories", { signal, timeout: 10000 }),
+        fetchWithTimeout("/api/products", { signal, timeout: 10000 }),
       ])
       if (!catRes.ok) throw new Error("Failed to load categories")
       const catData = await catRes.json()
-      setCategories(Array.isArray(catData) ? catData : catData.data ?? [])
+      if (!signal?.aborted) setCategories(Array.isArray(catData) ? catData : catData.data ?? [])
       if (prodRes.ok) {
         const prodData = await prodRes.json()
-        setProducts(Array.isArray(prodData) ? prodData : prodData.data ?? [])
+        if (!signal?.aborted) setProducts(Array.isArray(prodData) ? prodData : prodData.data ?? [])
       }
     } catch {
+      if (signal?.aborted) return
       toast.error("Failed to load categories")
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchCategories()
+    const controller = new AbortController()
+    abortRef.current = controller
+    fetchCategories(controller.signal)
+    return () => controller.abort()
   }, [fetchCategories])
 
   const filtered = categories.filter(
@@ -117,13 +125,16 @@ export default function CategoriesPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <Button onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Category
-        </Button>
+        <DemoGuard>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Category
+          </Button>
+        </DemoGuard>
       </div>
 
       <Card>
@@ -163,12 +174,16 @@ export default function CategoriesPage() {
                     <TableCell>{formatDate(category.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
+                        <DemoGuard>
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DemoGuard>
+                        <DemoGuard>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </DemoGuard>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -221,5 +236,6 @@ export default function CategoriesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }

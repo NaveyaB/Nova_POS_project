@@ -4,17 +4,24 @@ import { createSupabaseBrowserClient } from "./supabase-client"
 import { v4 as uuidv4 } from "uuid";
 interface AuthState {
   user: User | null
+  isDemo: boolean
   setUser: (user: User | null) => void
+  setIsDemo: (isDemo: boolean) => void
   logout: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  isDemo: false,
   setUser: (user) => set({ user }),
+  setIsDemo: (isDemo) => set({ isDemo }),
   logout: async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch {}
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signOut()
-    set({ user: null })
+    set({ user: null, isDemo: false })
     localStorage.removeItem("pos_cart")
   },
 }))

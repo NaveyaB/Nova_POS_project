@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner"
 import { Package, Plus, Minus, AlertTriangle, Loader2, Edit, Trash2 } from "lucide-react"
 import type { Product } from "@/types"
+import { fetchWithTimeout } from "@/lib/utils"
 
 type Tab = "overview" | "stock-in" | "stock-out" | "alerts"
 
@@ -28,23 +29,31 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const abortRef = useRef<AbortController | null>(null)
+
   const fetchProducts = async () => {
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/products")
+      const res = await fetchWithTimeout("/api/products", { signal: controller.signal, timeout: 10000 })
       if (!res.ok) throw new Error("Failed to fetch products")
       const data = await res.json()
-      setProducts(data)
+      if (!controller.signal.aborted) setProducts(data)
     } catch (err) {
+      if (controller.signal.aborted) return
       setError(err instanceof Error ? err.message : "Failed to load products")
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchProducts()
+    return () => { if (abortRef.current) abortRef.current.abort() }
   }, [])
 
   const filteredProducts = products.filter(

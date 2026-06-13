@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select } from "@/components/ui/select"
 import { toast } from "sonner"
+import { DemoGuard } from "@/components/ui/demo-guard"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -19,7 +21,6 @@ export default function NewProductPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    barcode: "",
     sku: "",
     category_id: "",
     brand: "",
@@ -84,6 +85,7 @@ export default function NewProductPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
@@ -116,15 +118,6 @@ export default function NewProductPage() {
                   placeholder="Enter SKU"
                   value={form.sku}
                   onChange={(e) => updateField("sku", e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Barcode</label>
-                <Input
-                  placeholder="Enter barcode"
-                  value={form.barcode}
-                  onChange={(e) => updateField("barcode", e.target.value)}
                 />
               </div>
 
@@ -259,14 +252,17 @@ export default function NewProductPage() {
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Product
-              </Button>
+              <DemoGuard>
+                <Button type="submit" disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Product
+                </Button>
+              </DemoGuard>
             </div>
           </form>
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   )
 }
